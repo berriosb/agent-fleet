@@ -19,7 +19,7 @@ jobs:
     name: actionlint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
       - uses: reviewdog/action-actionlint@v1
         with:
           fail_level: error
@@ -31,14 +31,14 @@ jobs:
     name: yaml-validity
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
       - name: YAML parse all files
         shell: bash
         run: |
           python3 -c "
           import glob, sys, yaml
           bad = []
-          files = glob.glob('**/*.yml', recursive=True) + glob.glob('**/*.yaml', recursive=True)
+          files = set(glob.glob('**/*.yml', recursive=True) + glob.glob('.github/**/*.yml', recursive=True) + glob.glob('**/*.yaml', recursive=True))
           for f in files:
               try:
                   yaml.safe_load(open(f))
@@ -56,7 +56,7 @@ jobs:
     name: js-syntax
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v5
         with:
           node-version: '22'

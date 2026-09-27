@@ -71,12 +71,17 @@ jobs:
     outputs:
       stack: ${{ steps.detect.outputs.stack }}
     steps:
+      - name: Checkout caller code
+        uses: actions/checkout@v4
+
       - name: Detect stack
         id: detect
         shell: bash
         run: |
           set -e
-          if [ -f pnpm-lock.yaml ]; then
+          if [ "${{ inputs.stack }}" != "auto" ] && [ -n "${{ inputs.stack }}" ]; then
+            echo "stack=${{ inputs.stack }}" >> "$GITHUB_OUTPUT"
+          elif [ -f pnpm-lock.yaml ]; then
             echo "stack=pnpm" >> "$GITHUB_OUTPUT"
           elif [ -f package-lock.json ]; then
             echo "stack=npm" >> "$GITHUB_OUTPUT"
@@ -129,6 +134,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Checkout caller code
+        uses: actions/checkout@v4
+
       - name: Setup pnpm
         if: needs.static.outputs.stack == 'pnpm' || needs.static.outputs.stack == 'npm' || needs.static.outputs.stack == 'mixed'
         uses: pnpm/action-setup@v4
@@ -154,45 +162,156 @@ jobs:
             *) echo "no tests configured"; exit 0 ;;
           esac
 
-  # 3. AI REVIEW — MiniMax M3 by default; skip if CodeRabbit already reviewed.
-  # Note: full review payload + posting logic lives in scripts/review-call.js
-  # and is wired up in a follow-up commit. For now this job is a placeholder
-  # that reports whether the AI review was requested and skipped/fresh.
+  # 3. AI REVIEW — Multi-provider (MiniMax M3 default, Anthropic, OpenAI, Gemini).
   ai-review:
     name: ai-review (${{ inputs.llm_provider }})
     needs: static
     if: inputs.enable_ai_review && !inputs.draft_pr
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
       REPO: ${{ github.repository }}
+      LLM_PROVIDER: ${{ inputs.llm_provider }}
       MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
       MINIMAX_BASE_URL: ${{ secrets.MINIMAX_BASE_URL }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_TITLE: ${{ github.event.pull_request.title }}
     steps:
+      - name: Checkout caller code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Skip if CodeRabbit already covered this PR
         if: inputs.skip_if_coderabbit
         id: cr
         shell: bash
         run: |
-          CR=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json comments \
+          CR_COMMENT=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json comments \
             -q '.comments[] | select(.body | test("@coderabbit|CodeRabbit|coderabbitai"; "i")) | .body' \
-            2>/dev/null | head -1)
-          if [ -n "$CR" ]; then
+            2>/dev/null | head -1 || true)
+          CR_REVIEW=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json reviews \
+            -q '.reviews[] | select(.author.login | test("coderabbit"; "i")) | .body' \
+            2>/dev/null | head -1 || true)
+          if [ -n "$CR_COMMENT" ] || [ -n "$CR_REVIEW" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "CodeRabbit already reviewed — skipping MiniMax review"
+            echo "CodeRabbit already reviewed — skipping AI review"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: AI review placeholder
+      - name: Capture PR Diff
         if: steps.cr.outputs.skip != 'true'
         shell: bash
         run: |
-          echo "AI review would call MiniMax M3 here."
-          echo "Full implementation lands in a follow-up commit."
-          echo "scripts/review-call.js is wired up next."
+          if [ -n "$BASE_SHA" ] && [ -n "$HEAD_SHA" ]; then
+            git diff "$BASE_SHA...$HEAD_SHA" > /tmp/pr.diff 2>/dev/null || git diff "$BASE_SHA" "$HEAD_SHA" > /tmp/pr.diff 2>/dev/null || true
+          fi
+          if [ ! -s /tmp/pr.diff ] && [ -n "$PR_NUMBER" ]; then
+            gh pr diff "$PR_NUMBER" --repo "$REPO" > /tmp/pr.diff 2>/dev/null || true
+          fi
+          if [ ! -s /tmp/pr.diff ]; then
+            git diff HEAD~1 > /tmp/pr.diff 2>/dev/null || true
+          fi
+          echo "Captured diff lines: $(wc -l < /tmp/pr.diff 2>/dev/null || echo 0)"
+
+      - name: Run AI Review
+        if: steps.cr.outputs.skip != 'true'
+        shell: bash
+        run: |
+          if [ -f scripts/review-call.js ]; then
+            node scripts/review-call.js
+          else
+            node - << 'EOF'
+            const fs = require('fs');
+            const https = require('https');
+            const http = require('http');
+            const { execSync } = require('child_process');
+
+            function resolveProvider() {
+              const req = (process.env.LLM_PROVIDER || 'minimax').toLowerCase();
+              if (req === 'minimax') {
+                return { name: 'minimax', key: process.env.MINIMAX_API_KEY, base: (process.env.MINIMAX_BASE_URL || 'https://api.minimax.chat/v1').replace(/\/$/, ''), model: process.env.MINIMAX_MODEL || 'MiniMax-M3' };
+              }
+              if (req === 'openai') {
+                return { name: 'openai', key: process.env.OPENAI_API_KEY, base: (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''), model: process.env.OPENAI_MODEL || 'gpt-4o-mini' };
+              }
+              if (req === 'gemini') {
+                return { name: 'gemini', key: process.env.GOOGLE_API_KEY, base: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.0-flash' };
+              }
+              if (req === 'anthropic') {
+                const base = (process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com/v1').replace(/\/$/, '');
+                return { name: 'anthropic', key: process.env.ANTHROPIC_API_KEY, base, model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-latest' };
+              }
+              if (process.env.MINIMAX_API_KEY) return { name: 'minimax', key: process.env.MINIMAX_API_KEY, base: 'https://api.minimax.chat/v1', model: 'MiniMax-M3' };
+              if (process.env.OPENAI_API_KEY) return { name: 'openai', key: process.env.OPENAI_API_KEY, base: 'https://api.openai.com/v1', model: 'gpt-4o-mini' };
+              return { name: req, key: null };
+            }
+
+            (async () => {
+              const provider = resolveProvider();
+              if (!provider.key) {
+                console.log(`[ai-review] No API key configured for provider "${provider.name}" — skipping.`);
+                process.exit(0);
+              }
+              let diff = fs.existsSync('/tmp/pr.diff') ? fs.readFileSync('/tmp/pr.diff', 'utf8').trim() : '';
+              if (!diff) {
+                console.log('[ai-review] No code diff found — skipping review.');
+                process.exit(0);
+              }
+              if (diff.length > 25000) diff = diff.slice(0, 25000) + '\n\n[diff truncated]';
+              const prompt = 'You are a senior code reviewer reviewing a pull request diff. Output github-flavored markdown comment with findings (severity, file:line, issue, suggested fix). End with LGTM, Approve with suggestions, or Request changes.';
+              const userContent = `${prompt}\n\nPR Title: ${process.env.PR_TITLE || 'PR'}\n\n--- GIT DIFF ---\n\`\`\`diff\n${diff}\n\`\`\``;
+              
+              const payload = JSON.stringify({
+                model: provider.model,
+                max_tokens: 1500,
+                temperature: 0.2,
+                messages: [{ role: 'system', content: 'You are a senior code reviewer.' }, { role: 'user', content: userContent }]
+              });
+              
+              const parsed = new URL(`${provider.base}/chat/completions`);
+              const client = parsed.protocol === 'http:' ? http : https;
+              const req = client.request(parsed, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${provider.key}`, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
+              }, res => {
+                let data = '';
+                res.on('data', c => data += c);
+                res.on('end', () => {
+                  if (res.statusCode !== 200) { console.error('LLM error', res.statusCode, data.slice(0, 300)); process.exit(0); }
+                  try {
+                    const json = JSON.parse(data);
+                    const reply = json.choices?.[0]?.message?.content || '';
+                    if (reply) {
+                      fs.writeFileSync('/tmp/review.md', reply);
+                      const prNum = process.env.PR_NUMBER;
+                      const ghToken = process.env.GH_TOKEN;
+                      if (prNum && ghToken) {
+                        try {
+                          execSync(`gh pr comment "${prNum}" --body-file /tmp/review.md`, { stdio: 'inherit', env: { ...process.env, GH_TOKEN: ghToken } });
+                        } catch (e) { console.warn('Could not post comment via gh:', e.message); }
+                      }
+                    }
+                  } catch (e) { console.error('parse error', e.message); }
+                });
+              });
+              req.on('error', e => console.error('http error', e.message));
+              req.write(payload);
+              req.end();
+            })();
+            EOF
+          fi
 
   # 4. AUTO-FIX — open a side branch when tests/lint fail (HITL by default).
   auto-fix:
@@ -205,39 +324,125 @@ jobs:
       contents: write
       pull-requests: write
     env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       HEAD_REF: ${{ github.event.pull_request.head.ref }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
       PR_TITLE: ${{ github.event.pull_request.title }}
+      REPO: ${{ github.repository }}
+      LLM_PROVIDER: ${{ inputs.llm_provider }}
+      MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
+      MINIMAX_BASE_URL: ${{ secrets.MINIMAX_BASE_URL }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
     steps:
+      - name: Checkout caller code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
       - name: Detect failing job + extract log
         id: capture
         shell: bash
         run: |
-          RUN_ID="${{ github.event.workflow_run.id || github.run_id }}"
+          RUN_ID="${{ github.run_id }}"
           gh run view "$RUN_ID" --log-failed > /tmp/failed.log 2>/dev/null || true
           head -c 4000 /tmp/failed.log > /tmp/failed.log.head
-          echo "captured=$(wc -c < /tmp/failed.log | tr -d ' ')" >> "$GITHUB_OUTPUT"
+          echo "captured=$(wc -c < /tmp/failed.log 2>/dev/null | tr -d ' ' || echo 0)" >> "$GITHUB_OUTPUT"
 
-      - name: Open auto-fix branch + MiniMax attempt
+      - name: Run Auto-Fix Attempt
         shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BRANCH="auto/fix-${{ github.run_id }}"
-          git checkout -b "$BRANCH"
-          node scripts/auto-fix-attempt.js "$BRANCH" || {
-            echo "Auto-fix could not produce a confident change — posting comment only."
-            gh pr comment "$PR_NUMBER" --body \
-              "🤖 **gatling auto-fix skipped** — failure was structural or model couldn't agree on a minimal fix. See run ${{ github.run_id }} for logs."
-            exit 0
-          }
-          gh pr create \
-            --base "$HEAD_REF" \
-            --head "$BRANCH" \
-            --title "🤖 auto-fix attempt for $PR_TITLE" \
-            --body "Auto-generated fix attempt. **Do not merge without human review.** Run: ${{ github.run_id }}" \
-            --draft || gh pr edit "$PR_NUMBER" --add-label "auto-fix-attempt"
+          if [ -f scripts/auto-fix-attempt.js ]; then
+            node scripts/auto-fix-attempt.js "$BRANCH"
+          else
+            node - "$BRANCH" << 'EOF'
+            const fs = require('fs');
+            const path = require('path');
+            const https = require('https');
+            const http = require('http');
+            const { execSync } = require('child_process');
+
+            const branch = process.argv[2];
+            if (!branch) process.exit(0);
+
+            const key = process.env.MINIMAX_API_KEY || process.env.OPENAI_API_KEY || process.env.GOOGLE_API_KEY;
+            if (!key) { console.log('[auto-fix] No API key — skipping.'); process.exit(0); }
+
+            let log = fs.existsSync('/tmp/failed.log') ? fs.readFileSync('/tmp/failed.log', 'utf8') : '';
+            if (!log) process.exit(0);
+
+            const allowedPattern = /(?:src|tests|app|packages|lib)\/[a-zA-Z0-9_\-\.\/]+\.(?:py|js|ts|tsx|jsx|json|yaml|yml|tf)/g;
+            const matches = log.match(allowedPattern) || [];
+            let candidateFile = null;
+            for (const m of matches) {
+              const full = path.join(process.cwd(), m);
+              if (fs.existsSync(full) && fs.statSync(full).isFile()) { candidateFile = m; break; }
+            }
+            if (!candidateFile) { console.log('[auto-fix] No candidate file found.'); process.exit(0); }
+
+            const fullPath = path.join(process.cwd(), candidateFile);
+            const originalContent = fs.readFileSync(fullPath, 'utf8');
+            if (originalContent.length > 35000) { console.log('[auto-fix] File too large.'); process.exit(0); }
+
+            const prompt = `You are an automated surgical code repair agent. Return JSON ONLY with:
+            {"file": "${candidateFile}", "search": "exact string to replace", "replace": "replacement string", "summary": "message"} or {"skip": "reason"}`;
+
+            const base = (process.env.MINIMAX_BASE_URL || 'https://api.minimax.chat/v1').replace(/\/$/, '');
+            const model = process.env.MINIMAX_MODEL || 'MiniMax-M3';
+            const payload = JSON.stringify({
+              model,
+              max_tokens: 1000,
+              temperature: 0.1,
+              messages: [{ role: 'user', content: `${prompt}\n\nFILE CONTENT:\n\`\`\`\n${originalContent}\n\`\`\`\n\nFAILURE LOG:\n\`\`\`\n${log.slice(0, 2500)}\n\`\`\`` }]
+            });
+
+            const parsed = new URL(`${base}/chat/completions`);
+            const client = parsed.protocol === 'http:' ? http : https;
+            const req = client.request(parsed, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
+            }, res => {
+              let data = '';
+              res.on('data', c => data += c);
+              res.on('end', () => {
+                if (res.statusCode !== 200) { console.error('LLM error', res.statusCode); process.exit(0); }
+                try {
+                  const json = JSON.parse(data);
+                  const text = json.choices?.[0]?.message?.content || '';
+                  const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+                  const fix = JSON.parse(cleaned);
+                  if (fix.skip || !fix.search || typeof fix.replace !== 'string') { process.exit(0); }
+                  const occurrences = originalContent.split(fix.search).length - 1;
+                  if (occurrences !== 1) { console.log('[auto-fix] Search string not unique.'); process.exit(0); }
+                  const newContent = originalContent.replace(fix.search, fix.replace);
+                  fs.writeFileSync(fullPath, newContent, 'utf8');
+                  execSync(`git checkout -b "${branch}"`, { stdio: 'inherit' });
+                  execSync(`git add "${candidateFile}"`, { stdio: 'inherit' });
+                  execSync(`git commit -m "auto-fix: ${fix.summary || 'mechanical fix'}"`, {
+                    stdio: 'inherit',
+                    env: { ...process.env, GIT_AUTHOR_NAME: 'gatling', GIT_AUTHOR_EMAIL: 'gatling@users.noreply.github.com', GIT_COMMITTER_NAME: 'gatling', GIT_COMMITTER_EMAIL: 'gatling@users.noreply.github.com' }
+                  });
+                  execSync(`git push -u origin "${branch}"`, { stdio: 'inherit' });
+                  console.log('[auto-fix] Pushed branch', branch);
+                  const prNum = process.env.PR_NUMBER;
+                  const headRef = process.env.HEAD_REF;
+                  if (prNum && headRef) {
+                    try {
+                      execSync(`gh pr create --base "${headRef}" --head "${branch}" --title "🤖 auto-fix attempt for ${process.env.PR_TITLE || 'PR'}" --body "Automated surgical fix attempt." --draft`, { stdio: 'inherit' });
+                    } catch (_) {}
+                  }
+                } catch (e) { console.error('parse error', e.message); }
+              });
+            });
+            req.on('error', e => console.error('http error', e.message));
+            req.write(payload);
+            req.end();
+            EOF
+          fi
 
   # 5. SUMMARY — single comment with the verdict so the PR is readable.
   summary:
@@ -245,13 +450,16 @@ jobs:
     needs: [static, tests, ai-review, auto-fix]
     if: always()
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: write
     env:
       PR_NUMBER: ${{ github.event.pull_request.number }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Post summary comment
+        if: env.PR_NUMBER != ''
         shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           {
             echo "## 🐦‍⬛ gatling summary"

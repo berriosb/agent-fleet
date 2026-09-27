@@ -18,3 +18,4 @@ Thumbs.db
 /tmp/
 scratch/
 *.bak
+.pre-push-qa-ok

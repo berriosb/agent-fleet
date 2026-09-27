@@ -27,7 +27,7 @@ instead.
   Heavy, requires a fresh subagent. **Use this skill when you want lighter, faster, no-LLM pass.**
 - `github`: PR/branch/CI lifecycle; assumes a remote exists. This skill runs **before** that.
 - `multi-repo-portfolio-audit`: portfolio-wide lint/TODO sweeps. This skill is single-repo.
-- For CI-side equivalent, deploy the `gatling` reusable workflow (see templates/gatling/).
+- CI/remote: each repository runs its own standard CI checks. This skill acts strictly *before* push.
 
 ## When to use this skill
 
@@ -142,7 +142,7 @@ should:
 
 1. Get the diff: `git diff HEAD` (or `git diff --cached` if everything is staged).
 2. Call **whatever LLM the agent has access to** (Claude, M3, Gemini, GPT-4, etc.).
-3. Use `templates/gatling/prompts/review.md` as the system prompt.
+3. Use `prompts/review.md` as the system prompt.
 4. Post findings as comments. Do NOT modify code from the review step (auto-fix is a
    separate step, gated on user approval).
 
@@ -154,7 +154,7 @@ in Step 2 are the load-bearing part.
 **Never auto-fix without explicit user permission.** When lint or tests fail:
 
 1. Extract the FIRST error from the failing log (≤ 100 lines).
-2. Try ONE proposed change with `templates/gatling/prompts/auto-fix.md` as the prompt.
+2. Try ONE proposed change with `prompts/auto-fix.md` as the prompt.
 3. If the proposal is mechanical and within `src/`, `tests/`, `app/`, `packages/`, `lib/`,
    commit ONLY that file.
 4. Otherwise, surface the failure to the user and stop.
@@ -194,7 +194,7 @@ A "FAIL" verdict blocks push unless the user has explicitly requested force-push
 | Agent | How to invoke this skill |
 |---|---|
 | **Hermes Agent** | Load with `skill_view(name='pre-push-qa')`. Run steps verbatim. |
-| **Claude Code** | Add the SKILL.md to `~/.claude/skills/pre-push-qa/SKILL.md` — Claude auto-loads from `~/.claude/skills/`. The reusable workflow in `bastianberrios/gatling` provides the GitHub-side remote guard. |
+| **Claude Code** | Add the SKILL.md to `~/.claude/skills/pre-push-qa/SKILL.md` — Claude auto-loads from `~/.claude/skills/`. |
 | **OpenCode** | Symlink into `~/.config/opencode/skills/pre-push-qa/`. OpenCode loads skills from that path. |
 | **Codex CLI** | Drop into `~/.codex/skills/pre-push-qa/`. Codex picks up skills per `~/.codex/skills/`. |
 | **Gemini CLI** | Symlink into `~/.gemini/skills/pre-push-qa/`. Gemini CLI auto-discovers. |
@@ -281,9 +281,7 @@ Before telling the user "QA passed", verify:
 - `SKILL.md` — this file (the agent-agnostic procedure)
 - (no scripts — agents run the commands inline; no API keys required)
 
-## Related infrastructure
+## Related tools in this repository
 
-- For the GitHub-side complement, deploy `templates/gatling/`:
-  - Consumer workflow (10 lines) → each repo's `.github/workflows/gatling.yml`
-  - Central reusable workflow → new repo `bastianberrios/gatling`
-  - Detection + scripts + prompts → already in `templates/gatling/`
+- `scripts/run.sh` — standalone bash script to run the same stack detection and tests locally.
+- `examples/pre-push.sh` — optional git pre-push hook to enforce checks before `git push`.
