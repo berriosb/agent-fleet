@@ -24,7 +24,7 @@ on:
         type: boolean
         default: true
       llm_provider:
-        description: "Where the AI review runs: minimax (default, your subscription) | anthropic | openai | gemini"
+        description: "Which OpenAI-compatible endpoint hosts the AI review. 'minimax' uses your MiniMax M3 subscription (default); 'anthropic' / 'openai' / 'gemini' need the matching API key as a repo secret."
         required: false
         type: string
         default: "minimax"

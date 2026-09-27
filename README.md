@@ -2,8 +2,8 @@
 
 Compuerta de calidad pre-push agnóstica al agente. Corre lint, tests y un push-guard en
 cualquiera de tus agentes (Codex, OpenCode, Antigravity `agy`, Gemini CLI, Claude Code
-o terminal) antes de un `git push`. Review por IA opcional vía MiniMax M3 (no requiere
-una API key nueva — usa tu suscripción existente).
+o terminal) antes de un `git push`. Review por IA opcional contra cualquier endpoint
+OpenAI-compatible (MiniMax M3, Anthropic, OpenAI, Gemini — el que tengas configurado).
 
 El workflow reusable en `.github/workflows/qa.yml` es el complemento del lado de CI:
 levanta la red de seguridad si un push se saltó la skill local, y abre una rama
@@ -15,9 +15,9 @@ levanta la red de seguridad si un push se saltó la skill local, y abre una rama
 |---|---|
 | `skills/pre-push-qa/SKILL.md` | La skill del agente. Symlink en el path de skills de cada agente. |
 | `.github/workflows/qa.yml` | **Workflow reusable.** Los repos consumidores lo importan con `uses: berriosb/pre-push-qa/.github/workflows/qa.yml@v1`. |
-| `prompts/review.md` | System prompt para review por IA (afinado para MiniMax M3; funciona con cualquier LLM OpenAI-compatible). |
+| `prompts/review.md` | System prompt para review por IA. Agnóstico al LLM. |
 | `prompts/auto-fix.md` | Prompt de auto-fix. Estricto: un archivo, un cambio mecánico. |
-| `scripts/review-call.js` | Llama a MiniMax M3 `/chat/completions` y escribe el comentario de review en un archivo. |
+| `scripts/review-call.js` | Llama a un endpoint OpenAI-compatible `/chat/completions` y escribe el comentario de review. |
 | `scripts/auto-fix-attempt.js` | Abre una rama side-branch con un intento de fix mecánico, con HITL. |
 | `examples/pre-push.sh` | Hook git `pre-push` **opcional** para quien quiera enforcement duro. Apagado por defecto. |
 
