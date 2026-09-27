@@ -46,6 +46,20 @@ ls -la ~/.agents/skills/pre-push-qa/SKILL.md
 agy -p "list the available skills" 2>&1 | head -10
 ```
 
+## ⚠️ Note about `.github/workflows/qa.yml` and the failing run you'll see
+
+`qa.yml` uses `on: workflow_call`. It is a **reusable workflow** — it only runs when
+invoked by another repo's workflow via `uses: berriosb/pre-push-qa/.github/workflows/qa.yml@v1`.
+
+Because `qa.yml` declares `workflow_call`, GitHub will report a failed run with
+"No jobs ran" the first time you push it. **That failure is expected**, not a bug.
+The companion workflow `validate.yml` (in the same folder) does run on every push
+to `main` and verifies that `qa.yml` itself is syntactically valid via `gh workflow lint`.
+
+When you later install `gatling.yml` into a consumer repo (see next section), that
+consumer's push will trigger `qa.yml` *for real* — and it will run the 4 jobs
+(static / tests / ai-review / auto-fix) as expected.
+
 ## Enable the CI gate on a consumer repo (60 seconds)
 
 Copy `.github/workflows/gatling.yml` from the README section below into your repo's
