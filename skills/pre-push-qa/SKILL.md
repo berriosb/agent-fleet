@@ -33,7 +33,7 @@ instead.
 
 Load `pre-push-qa` whenever any of your agents says one of:
 - "I'm going to commit this"
-- "push to origin"
+- "push to origin" / "push to main" (trunk-based direct pushes)
 - "open a PR"
 - "ship this fix"
 - "before I push — make sure CI passes"

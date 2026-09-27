@@ -166,7 +166,7 @@ jobs:
   ai-review:
     name: ai-review (${{ inputs.llm_provider }})
     needs: static
-    if: inputs.enable_ai_review && !inputs.draft_pr
+    if: inputs.enable_ai_review && github.event.pull_request.number != '' && !inputs.draft_pr
     runs-on: ubuntu-latest
     timeout-minutes: 8
     permissions:
@@ -256,10 +256,10 @@ jobs:
       pull-requests: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      HEAD_REF: ${{ github.event.pull_request.head.ref }}
-      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-      PR_NUMBER: ${{ github.event.pull_request.number }}
-      PR_TITLE: ${{ github.event.pull_request.title }}
+      HEAD_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+      PR_TITLE: ${{ github.event.pull_request.title || github.event.head_commit.message || 'Direct push to main' }}
       REPO: ${{ github.repository }}
       LLM_PROVIDER: ${{ inputs.llm_provider }}
       MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
@@ -271,7 +271,7 @@ jobs:
       - name: Checkout caller code
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
           fetch-depth: 0
 
       - name: Checkout QA scripts
@@ -302,7 +302,7 @@ jobs:
             echo "No auto-fix script found — skipping."
           fi
 
-  # 5. SUMMARY — single comment with the verdict so the PR is readable.
+  # 5. SUMMARY — writes to GitHub Step Summary and comments on PR if available.
   summary:
     name: summary
     needs: [static, tests, ai-review, auto-fix]
@@ -315,8 +315,7 @@ jobs:
       PR_NUMBER: ${{ github.event.pull_request.number }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Post summary comment
-        if: env.PR_NUMBER != ''
+      - name: Post summary
         shell: bash
         run: |
           {
@@ -329,6 +328,14 @@ jobs:
             echo "| ai-review | ${{ needs.ai-review.result }} |"
             echo "| auto-fix | ${{ needs.auto-fix.result }} |"
             echo ""
-            echo "Run: ${{ github.run_id }}"
+            echo "Branch / Ref: \`${{ github.ref_name }}\`"
+            echo "Run ID: ${{ github.run_id }}"
           } > /tmp/summary.md
-          gh pr comment "$PR_NUMBER" --body "$(cat /tmp/summary.md)" || true
+
+          # Always output to GitHub Actions Job Summary (renders on push to main and PRs)
+          cat /tmp/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+          # If triggered by a PR, also post comment to PR thread
+          if [ -n "$PR_NUMBER" ]; then
+            gh pr comment "$PR_NUMBER" --body "$(cat /tmp/summary.md)" || true
+          fi
