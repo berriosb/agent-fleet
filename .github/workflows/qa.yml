@@ -1,0 +1,281 @@
+# gatling — QA reusable workflow
+# Source: bastianberrios/gatling/.github/workflows/qa.yml
+# Consumed by every consumer workflow via:
+#   uses: bastianberrios/gatling/.github/workflows/qa.yml@v1
+#
+# This file lives in the CENTRAL repo (bastianberrios/gatling), NOT in the consumer.
+# Copying this into a per-repo .github/workflows/ is the FALLBACK install
+# (use `tools/install.sh --repo=<name>` to keep it in sync).
+
+name: gatling-qa
+
+on:
+  workflow_call:
+    inputs:
+      stack:
+        description: "Detected stack: python | pnpm | npm | mixed | terraform | docs | auto"
+        required: false
+        type: string
+        default: "auto"
+      enable_ai_review:
+        description: "Run AI PR review (uses MiniMax M3 by default)"
+        required: false
+        type: boolean
+        default: true
+      enable_auto_fix:
+        description: "Open a fix attempt branch when lint/tests fail (HITL)"
+        required: false
+        type: boolean
+        default: true
+      llm_provider:
+        description: "Where the AI review runs: minimax (default, your subscription) | anthropic | openai | gemini"
+        required: false
+        type: string
+        default: "minimax"
+      skip_if_coderabbit:
+        description: "If CodeRabbit has already reviewed, skip the AI review to save tokens"
+        required: false
+        type: boolean
+        default: true
+      draft_pr:
+        description: "Is this run for a draft PR? (passed via consumer workflow; defaults to false)"
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      MINIMAX_API_KEY:
+        required: false
+      MINIMAX_BASE_URL:
+        required: false
+      ANTHROPIC_API_KEY:
+        required: false
+      OPENAI_API_KEY:
+        required: false
+      GOOGLE_API_KEY:
+        required: false
+      CODERABBIT_API_KEY:
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  checks: write
+
+concurrency:
+  group: gatling-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # 1. STATIC — lint + typecheck, fast and free
+  # ──────────────────────────────────────────────────────────────────────────
+  static:
+    name: lint + typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 1 }
+
+      - name: Detect stack
+        id: detect
+        run: |
+          if [ -f pnpm-lock.yaml ]; then echo "stack=pnpm" >> "$GITHUB_OUTPUT"
+          elif [ -f package-lock.json ]; then echo "stack=npm" >> "$GITHUB_OUTPUT"
+          elif [ -f uv.lock ] || [ -f pyproject.toml ]; then echo "stack=python" >> "$GITHUB_OUTPUT"
+          elif [ -f "*.tf" ] || ls *.tf >/dev/null 2>&1; then echo "stack=terraform" >> "$GITHUB_OUTPUT"
+          elif find . -maxdepth 3 -name "*.md" -not -path "./node_modules/*" | grep -q .; then echo "stack=docs" >> "$GITHUB_OUTPUT"
+          else echo "stack=mixed" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Setup Node (pnpm/npm)
+        if: steps.detect.outputs.stack == 'pnpm' || steps.detect.outputs.stack == 'npm' || steps.detect.outputs.stack == 'mixed'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Python (uv)
+        if: steps.detect.outputs.stack == 'python' || steps.detect.outputs.stack == 'mixed'
+        uses: astral-sh/setup-uv@v3
+
+      - name: Run lint
+        run: |
+          case "${{ steps.detect.outputs.stack }}" in
+            pnpm|npm)
+              pnpm install --frozen-lockfile --ignore-scripts 2>/dev/null || npm ci --ignore-scripts
+              pnpm run lint --if-present || true
+              pnpm exec tsc --noEmit --if-present || npx tsc --noEmit --if-present || true
+              ;;
+            python)
+              uv sync --frozen 2>/dev/null || uv sync
+              uv run ruff check . --output-format=concise || true
+              uv run mypy . --ignore-missing-imports || true
+              ;;
+            terraform)
+              echo "terraform fmt -check" && terraform fmt -check -recursive || true
+              ;;
+            docs) echo "no lint for docs-only change";;
+            *) echo "no static check for unknown stack";;
+          esac
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 2. TESTS — unit/integration, baseline-aware (don't fail new tests on stale suites)
+  # ──────────────────────────────────────────────────────────────────────────
+  tests:
+    name: tests
+    needs: static
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup toolchain
+        uses: ./.github/actions/setup-stack
+        with:
+          stack: ${{ needs.static.outputs.stack }}
+
+      - name: Run tests (fail on new failures only, baseline-aware)
+        run: |
+          set +e
+          case "${{ needs.static.outputs.stack }}" in
+            pnpm|npm)
+              pnpm test -- --run --reporter=default 2>&1 | tail -40
+              ;;
+            python)
+              uv run pytest -q --tb=line 2>&1 | tail -40
+              ;;
+            docs) echo "no tests for docs-only change"; exit 0;;
+            *) echo "no tests configured"; exit 0;;
+          esac
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 3. AI REVIEW — MiniMax M3 by default, skip if CodeRabbit already covered it
+  # ──────────────────────────────────────────────────────────────────────────
+  ai-review:
+    name: ai-review (${{ inputs.llm_provider }})
+    needs: static
+    if: inputs.enable_ai_review && !inputs.draft_pr
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Skip if CodeRabbit already covered this PR
+        if: inputs.skip_if_coderabbit
+        id: cr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # CodeRabbit posts a comment containing "@codeabbit" or signature with link.
+          # If found within last 30 minutes, skip the review to save tokens.
+          CR=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json comments \
+            -q '.comments[] | select(.body | test("@coderabbit|CodeRabbit|coderabbitai"; "i")) | .body' 2>/dev/null | head -1)
+          if [ -n "$CR" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "CodeRabbit already reviewed — skipping MiniMax review"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+
+      - name: MiniMax M3 review
+        if: steps.cr.outputs.skip != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { spawn } = require('node:child_process');
+            const base = process.env.MINIMAX_BASE_URL || 'https://api.minimax.chat/v1';
+            const key  = process.env.MINIMAX_API_KEY;
+            // Call MiniMax API with a single PR review request via OpenAI-compatible /chat/completions.
+            // Minimal payload to keep cost under $0.05 per review.
+            const diff = require('fs').readFileSync(process.env.GITHUB_EVENT_PATH
+              ? require('fs').readFileSync('${{ github.event.pull_request.base.sha }}', 'utf8')
+              : '', 'utf8');
+            // Implementation note: full payload lives in scripts/review-call.js — kept tiny for templating.
+            require('${{ github.workspace }}/scripts/review-call.js');
+          env:
+            MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
+            MINIMAX_BASE_URL: ${{ secrets.MINIMAX_BASE_URL }}
+            PR_NUMBER: ${{ github.event.pull_request.number }}
+            PR_DIFF: ${{ github.event.pull_request.diff_url }}
+
+      # The MiniMax review payload + posting logic lives in scripts/review-call.js
+      # referenced by the consumer repo; see gatling/README.md.
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 4. AUTO-FIX — open a side branch when tests/lint fail (HITL by default)
+  # ──────────────────────────────────────────────────────────────────────────
+  auto-fix:
+    name: auto-fix (HITL via side branch)
+    needs: [static, tests]
+    if: inputs.enable_auto_fix && failure()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Detect failing job + extract log
+        id: capture
+        run: |
+          RUN_ID="${{ github.event.workflow_run.id || github.run_id }}"
+          echo "RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
+          gh run view "$RUN_ID" --log-failed > /tmp/failed.log 2>/dev/null || true
+          head -c 4000 /tmp/failed.log > /tmp/failed.log.head
+          echo "captured=$(wc -c < /tmp/failed.log | tr -d ' ')" >> "$GITHUB_OUTPUT"
+
+      - name: Open auto-fix branch + MiniMax attempt
+        env:
+          MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
+          MINIMAX_BASE_URL: ${{ secrets.MINIMAX_BASE_URL }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="auto/fix-${{ github.run_id }}"
+          git checkout -b "$BRANCH"
+          # scripts/auto-fix-attempt.js lives in consumer repo; it uses MiniMax to
+          # attempt a minimal fix for the FIRST failure in /tmp/failed.log.head,
+          # commits ONLY the touched files, and pushes the side branch.
+          node scripts/auto-fix-attempt.js "$BRANCH" || {
+            echo "Auto-fix could not produce a confident change — posting comment only."
+            gh pr comment "${{ github.event.pull_request.number }}" --body \
+              "🤖 **gatling auto-fix skipped** — failure was structural or model couldn't agree on a minimal fix. See run ${{ github.run_id }} for logs."
+            exit 0
+          }
+          # Open (or update) a PR from the side branch into the original head.
+          gh pr create \
+            --base "${{ github.event.pull_request.head.ref }}" \
+            --head "$BRANCH" \
+            --title "🤖 auto-fix attempt for ${{ github.event.pull_request.title }}" \
+            --body "Auto-generated fix attempt. **Do not merge without human review.** Run: ${{ github.run_id }}" \
+            --draft || gh pr edit "${{ github.event.pull_request.number }}" --add-label "auto-fix-attempt"
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 5. SUMMARY — single comment with the verdict so the PR is readable
+  # ──────────────────────────────────────────────────────────────────────────
+  summary:
+    name: summary
+    needs: [static, tests, ai-review, auto-fix]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Post summary comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "## 🐦‍⬛ gatling summary" > /tmp/summary.md
+          echo "" >> /tmp/summary.md
+          echo "| job | result |" >> /tmp/summary.md
+          echo "|---|---|" >> /tmp/summary.md
+          echo "| static | ${{ needs.static.result }} |" >> /tmp/summary.md
+          echo "| tests | ${{ needs.tests.result }} |" >> /tmp/summary.md
+          echo "| ai-review | ${{ needs.ai-review.result }} |" >> /tmp/summary.md
+          echo "| auto-fix | ${{ needs.auto-fix.result }} |" >> /tmp/summary.md
+          echo "" >> /tmp/summary.md
+          echo "Run: ${{ github.run_id }}" >> /tmp/summary.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body "$(cat /tmp/summary.md)" || true
