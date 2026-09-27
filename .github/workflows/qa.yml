@@ -68,6 +68,8 @@ jobs:
     name: lint + typecheck
     runs-on: ubuntu-latest
     timeout-minutes: 8
+    outputs:
+      stack: ${{ steps.detect.outputs.stack }}
     steps:
       - name: Detect stack
         id: detect
@@ -153,7 +155,9 @@ jobs:
           esac
 
   # 3. AI REVIEW — MiniMax M3 by default; skip if CodeRabbit already reviewed.
-  # Note: this job does NOT checkout the repo — it only needs GitHub API access.
+  # Note: full review payload + posting logic lives in scripts/review-call.js
+  # and is wired up in a follow-up commit. For now this job is a placeholder
+  # that reports whether the AI review was requested and skipped/fresh.
   ai-review:
     name: ai-review (${{ inputs.llm_provider }})
     needs: static
@@ -182,9 +186,13 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: MiniMax M3 review
+      - name: AI review placeholder
         if: steps.cr.outputs.skip != 'true'
-        uses: actions/github-script@v7
+        shell: bash
+        run: |
+          echo "AI review would call MiniMax M3 here."
+          echo "Full implementation lands in a follow-up commit."
+          echo "scripts/review-call.js is wired up next."
 
   # 4. AUTO-FIX — open a side branch when tests/lint fail (HITL by default).
   auto-fix:
