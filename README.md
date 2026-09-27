@@ -38,9 +38,6 @@ for dest in \
 done
 ```
 
-> **Pi / gentle-ai queda intencionalmente fuera** — ya tiene 4R / JD / lens review, que
-> es estrictamente más fuerte que el paso de review de esta skill.
-
 Verificar:
 ```bash
 ls -la ~/.claude/skills/pre-push-qa/SKILL.md
@@ -91,7 +88,6 @@ El hook bloqueará cualquier push en la terminal a menos que:
 - **No requiere API keys ni secrets remotos:** Los tests y linters son 100% locales y gratuitos.
 - **No ensucia repositorios con bots ni PRs automáticos en CI:** Cada repositorio mantiene sus propios flujos de CI estándar.
 - **No es git hook por defecto:** Es una skill que el agente ejecuta por iniciativa o solicitud. Si quieres enforcement duro a nivel de git, usa `examples/pre-push.sh`.
-- **No hace review por IA dentro de Pi / gentle-ai:** Pi tiene mejor maquinaria de review.
 - **No enforce `git push --force` ni `--no-verify`.** Para eso, sumá el skill
   [`block-no-verify-hook`](https://www.skills.sh/wshobson/agents/block-no-verify-hook) como complemento.
 - **No hace secret scanning:** Recomendado como complemento:
