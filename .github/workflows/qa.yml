@@ -87,7 +87,11 @@ jobs:
             echo "stack=npm" >> "$GITHUB_OUTPUT"
           elif [ -f uv.lock ] || [ -f pyproject.toml ]; then
             echo "stack=python" >> "$GITHUB_OUTPUT"
-          elif compgen -G "*.tf" > /dev/null; then
+          elif [ -f requirements.txt ]; then
+            echo "stack=pip" >> "$GITHUB_OUTPUT"
+          elif [ -f Dockerfile ] || [ -f docker-compose.yml ] || [ -f docker-compose.yaml ]; then
+            echo "stack=docker" >> "$GITHUB_OUTPUT"
+          elif find . -maxdepth 4 -name "*.tf" -not -path "./node_modules/*" -print -quit | grep -q .; then
             echo "stack=terraform" >> "$GITHUB_OUTPUT"
           elif find . -maxdepth 3 -name "*.md" -not -path "./node_modules/*" -print -quit | grep -q .; then
             echo "stack=docs" >> "$GITHUB_OUTPUT"
@@ -119,6 +123,18 @@ jobs:
               uv sync --frozen 2>/dev/null || uv sync
               uv run ruff check . --output-format=concise || true
               uv run mypy . --ignore-missing-imports || true
+              # Also lint Dockerfile if present (cheap insurance).
+              if [ -f Dockerfile ] && command -v hadolint > /dev/null; then hadolint Dockerfile || true; fi
+              ;;
+            pip)
+              pip install --quiet -r requirements.txt
+              pip install --quiet ruff
+              ruff check . --output-format=concise || true
+              if [ -f Dockerfile ] && command -v hadolint > /dev/null; then hadolint Dockerfile || true; fi
+              ;;
+            docker)
+              docker --version || true
+              if command -v hadolint > /dev/null; then hadolint Dockerfile || true; fi
               ;;
             terraform)
               terraform fmt -check -recursive || true
@@ -147,6 +163,21 @@ jobs:
         if: needs.static.outputs.stack == 'python' || needs.static.outputs.stack == 'mixed'
         uses: astral-sh/setup-uv@v3
 
+      - name: Setup Python (system)
+        if: needs.static.outputs.stack == 'pip'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install hadolint
+        if: needs.static.outputs.stack == 'docker' || needs.static.outputs.stack == 'pip' || needs.static.outputs.stack == 'python'
+        shell: bash
+        run: |
+          if ! command -v hadolint > /dev/null; then
+            echo "Installing hadolint (Dockerfile linter)..."
+            sudo apt-get update -qq && sudo apt-get install -y -qq hadolint || true
+          fi
+
       - name: Run tests
         shell: bash
         run: |
@@ -158,6 +189,13 @@ jobs:
             python)
               uv run pytest -q --tb=line 2>&1 | tail -40
               ;;
+            pip)
+              # No standard test runner for raw-pip projects; scan for common patterns.
+              if [ -d tests ]; then pytest -q --tb=line 2>&1 | tail -40 || true; fi
+              if [ -d test ]; then python -m unittest discover -s test 2>&1 | tail -20 || true; fi
+              echo "(pip) no test runner auto-detected; install pytest or define a run.sh if tests exist"
+              ;;
+            docker) echo "(docker) no test runner; add a Dockerfile test target to enable" ;;
             docs) echo "no tests for docs-only change"; exit 0 ;;
             *) echo "no tests configured"; exit 0 ;;
           esac
