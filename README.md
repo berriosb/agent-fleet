@@ -52,12 +52,16 @@ agy -p "list the available skills" 2>&1 | head -10
 
 Cuando le dices a tu agente "hacé push", "subí los cambios" o "revisá antes de pushear", la skill:
 
-1. **Auto-detecta el stack del repositorio:**
-   - **Python** (`uv.lock` o `pyproject.toml`): corre `ruff check` y `pytest`.
-   - **pnpm** (`pnpm-lock.yaml`): corre `pnpm run lint` y `pnpm test -- --run`.
-   - **npm** (`package-lock.json`): corre `npm run lint` y `npm test -- --passWithNoTests`.
-   - **Terraform** (`*.tf`): corre `terraform fmt -check -recursive`.
+1. **Auto-detecta el stack del repositorio (orden de precedencia, primero detectado gana):**
+   - **pnpm** (`pnpm-lock.yaml`): corre `pnpm install --frozen-lockfile`, `pnpm run lint`, `tsc --noEmit`.
+   - **npm** (`package-lock.json`): corre `npm ci`, `npm run lint`, `tsc --noEmit`.
+   - **Python (uv)** (`uv.lock` o `pyproject.toml`): corre `uv sync`, `ruff check`, `mypy`, `pytest`. Si además hay `Dockerfile`, agrega `hadolint`.
+   - **Python (pip)** (`requirements.txt` sin manifests uv): corre `pip install -r requirements.txt`, `ruff check`. Auto-detecta `pytest` o `unittest` si existen `tests/` o `test/`. Si hay `Dockerfile`, agrega `hadolint`.
+   - **Docker** (`Dockerfile` o `docker-compose.{yml,yaml}`): corre `hadolint Dockerfile`.
+   - **Terraform** (`*.tf` en raíz o subdir hasta 4 niveles): corre `terraform fmt -check -recursive`.
    - **Docs** (`*.md` solamente): se salta lint/tests de código para no gastar tiempo.
+   - **Mixed** (ninguno detectado): corre `pnpm` + `python` en paralelo como fallback.
+
 2. **Ejecuta static + tests:** Si algo falla, **detiene el push** y pide corregir antes de continuar.
 3. **Push-guard:** Valida que el árbol de trabajo esté limpio y que todas las comprobaciones hayan salido con código `0`.
 
