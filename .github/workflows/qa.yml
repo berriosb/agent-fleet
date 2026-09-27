@@ -1,11 +1,7 @@
-# gatling — QA reusable workflow
-# Source: bastianberrios/gatling/.github/workflows/qa.yml
-# Consumed by every consumer workflow via:
-#   uses: bastianberrios/gatling/.github/workflows/qa.yml@v1
-#
-# This file lives in the CENTRAL repo (bastianberrios/gatling), NOT in the consumer.
-# Copying this into a per-repo .github/workflows/ is the FALLBACK install
-# (use `tools/install.sh --repo=<name>` to keep it in sync).
+# gatling — QA reusable workflow.
+# This file lives in the central repo (berriosb/pre-push-qa).
+# Consumer repos invoke it via:
+#   uses: berriosb/pre-push-qa/.github/workflows/qa.yml@v1
 
 name: gatling-qa
 
@@ -67,28 +63,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ──────────────────────────────────────────────────────────────────────────
-  # 1. STATIC — lint + typecheck, fast and free
-  # ──────────────────────────────────────────────────────────────────────────
+  # 1. STATIC — lint + typecheck, fast and free.
   static:
     name: lint + typecheck
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 1 }
-
       - name: Detect stack
         id: detect
+        shell: bash
         run: |
-          if [ -f pnpm-lock.yaml ]; then echo "stack=pnpm" >> "$GITHUB_OUTPUT"
-          elif [ -f package-lock.json ]; then echo "stack=npm" >> "$GITHUB_OUTPUT"
-          elif [ -f uv.lock ] || [ -f pyproject.toml ]; then echo "stack=python" >> "$GITHUB_OUTPUT"
-          elif [ -f "*.tf" ] || ls *.tf >/dev/null 2>&1; then echo "stack=terraform" >> "$GITHUB_OUTPUT"
-          elif find . -maxdepth 3 -name "*.md" -not -path "./node_modules/*" | grep -q .; then echo "stack=docs" >> "$GITHUB_OUTPUT"
-          else echo "stack=mixed" >> "$GITHUB_OUTPUT"; fi
+          set -e
+          if [ -f pnpm-lock.yaml ]; then
+            echo "stack=pnpm" >> "$GITHUB_OUTPUT"
+          elif [ -f package-lock.json ]; then
+            echo "stack=npm" >> "$GITHUB_OUTPUT"
+          elif [ -f uv.lock ] || [ -f pyproject.toml ]; then
+            echo "stack=python" >> "$GITHUB_OUTPUT"
+          elif compgen -G "*.tf" > /dev/null; then
+            echo "stack=terraform" >> "$GITHUB_OUTPUT"
+          elif find . -maxdepth 3 -name "*.md" -not -path "./node_modules/*" -print -quit | grep -q .; then
+            echo "stack=docs" >> "$GITHUB_OUTPUT"
+          else
+            echo "stack=mixed" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Setup Node (pnpm/npm)
+      - name: Setup pnpm
         if: steps.detect.outputs.stack == 'pnpm' || steps.detect.outputs.stack == 'npm' || steps.detect.outputs.stack == 'mixed'
         uses: pnpm/action-setup@v4
         with:
@@ -99,7 +99,9 @@ jobs:
         uses: astral-sh/setup-uv@v3
 
       - name: Run lint
+        shell: bash
         run: |
+          set +e
           case "${{ steps.detect.outputs.stack }}" in
             pnpm|npm)
               pnpm install --frozen-lockfile --ignore-scripts 2>/dev/null || npm ci --ignore-scripts
@@ -112,28 +114,31 @@ jobs:
               uv run mypy . --ignore-missing-imports || true
               ;;
             terraform)
-              echo "terraform fmt -check" && terraform fmt -check -recursive || true
+              terraform fmt -check -recursive || true
               ;;
-            docs) echo "no lint for docs-only change";;
-            *) echo "no static check for unknown stack";;
+            docs) echo "no lint for docs-only change" ;;
+            *) echo "no static check for unknown stack" ;;
           esac
 
-  # ──────────────────────────────────────────────────────────────────────────
-  # 2. TESTS — unit/integration, baseline-aware (don't fail new tests on stale suites)
-  # ──────────────────────────────────────────────────────────────────────────
+  # 2. TESTS — unit/integration, baseline-aware.
   tests:
     name: tests
     needs: static
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup toolchain
-        uses: ./.github/actions/setup-stack
+      - name: Setup pnpm
+        if: needs.static.outputs.stack == 'pnpm' || needs.static.outputs.stack == 'npm' || needs.static.outputs.stack == 'mixed'
+        uses: pnpm/action-setup@v4
         with:
-          stack: ${{ needs.static.outputs.stack }}
+          version: 9
 
-      - name: Run tests (fail on new failures only, baseline-aware)
+      - name: Setup Python (uv)
+        if: needs.static.outputs.stack == 'python' || needs.static.outputs.stack == 'mixed'
+        uses: astral-sh/setup-uv@v3
+
+      - name: Run tests
+        shell: bash
         run: |
           set +e
           case "${{ needs.static.outputs.stack }}" in
@@ -143,139 +148,113 @@ jobs:
             python)
               uv run pytest -q --tb=line 2>&1 | tail -40
               ;;
-            docs) echo "no tests for docs-only change"; exit 0;;
-            *) echo "no tests configured"; exit 0;;
+            docs) echo "no tests for docs-only change"; exit 0 ;;
+            *) echo "no tests configured"; exit 0 ;;
           esac
 
-  # ──────────────────────────────────────────────────────────────────────────
-  # 3. AI REVIEW — MiniMax M3 by default, skip if CodeRabbit already covered it
-  # ──────────────────────────────────────────────────────────────────────────
+  # 3. AI REVIEW — MiniMax M3 by default; skip if CodeRabbit already reviewed.
+  # Note: this job does NOT checkout the repo — it only needs GitHub API access.
   ai-review:
     name: ai-review (${{ inputs.llm_provider }})
     needs: static
     if: inputs.enable_ai_review && !inputs.draft_pr
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      REPO: ${{ github.repository }}
+      MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
+      MINIMAX_BASE_URL: ${{ secrets.MINIMAX_BASE_URL }}
     steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
-
       - name: Skip if CodeRabbit already covered this PR
         if: inputs.skip_if_coderabbit
         id: cr
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
-          # CodeRabbit posts a comment containing "@codeabbit" or signature with link.
-          # If found within last 30 minutes, skip the review to save tokens.
           CR=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json comments \
-            -q '.comments[] | select(.body | test("@coderabbit|CodeRabbit|coderabbitai"; "i")) | .body' 2>/dev/null | head -1)
+            -q '.comments[] | select(.body | test("@coderabbit|CodeRabbit|coderabbitai"; "i")) | .body' \
+            2>/dev/null | head -1)
           if [ -n "$CR" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "CodeRabbit already reviewed — skipping MiniMax review"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          REPO: ${{ github.repository }}
 
       - name: MiniMax M3 review
         if: steps.cr.outputs.skip != 'true'
         uses: actions/github-script@v7
-        with:
-          script: |
-            const { spawn } = require('node:child_process');
-            const base = process.env.MINIMAX_BASE_URL || 'https://api.minimax.chat/v1';
-            const key  = process.env.MINIMAX_API_KEY;
-            // Call MiniMax API with a single PR review request via OpenAI-compatible /chat/completions.
-            // Minimal payload to keep cost under $0.05 per review.
-            const diff = require('fs').readFileSync(process.env.GITHUB_EVENT_PATH
-              ? require('fs').readFileSync('${{ github.event.pull_request.base.sha }}', 'utf8')
-              : '', 'utf8');
-            // Implementation note: full payload lives in scripts/review-call.js — kept tiny for templating.
-            require('${{ github.workspace }}/scripts/review-call.js');
-          env:
-            MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
-            MINIMAX_BASE_URL: ${{ secrets.MINIMAX_BASE_URL }}
-            PR_NUMBER: ${{ github.event.pull_request.number }}
-            PR_DIFF: ${{ github.event.pull_request.diff_url }}
 
-      # The MiniMax review payload + posting logic lives in scripts/review-call.js
-      # referenced by the consumer repo; see gatling/README.md.
-
-  # ──────────────────────────────────────────────────────────────────────────
-  # 4. AUTO-FIX — open a side branch when tests/lint fail (HITL by default)
-  # ──────────────────────────────────────────────────────────────────────────
+  # 4. AUTO-FIX — open a side branch when tests/lint fail (HITL by default).
   auto-fix:
     name: auto-fix (HITL via side branch)
     needs: [static, tests]
     if: inputs.enable_auto_fix && failure()
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_TITLE: ${{ github.event.pull_request.title }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Detect failing job + extract log
         id: capture
+        shell: bash
         run: |
           RUN_ID="${{ github.event.workflow_run.id || github.run_id }}"
-          echo "RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
           gh run view "$RUN_ID" --log-failed > /tmp/failed.log 2>/dev/null || true
           head -c 4000 /tmp/failed.log > /tmp/failed.log.head
           echo "captured=$(wc -c < /tmp/failed.log | tr -d ' ')" >> "$GITHUB_OUTPUT"
 
       - name: Open auto-fix branch + MiniMax attempt
+        shell: bash
         env:
-          MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
-          MINIMAX_BASE_URL: ${{ secrets.MINIMAX_BASE_URL }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BRANCH="auto/fix-${{ github.run_id }}"
           git checkout -b "$BRANCH"
-          # scripts/auto-fix-attempt.js lives in consumer repo; it uses MiniMax to
-          # attempt a minimal fix for the FIRST failure in /tmp/failed.log.head,
-          # commits ONLY the touched files, and pushes the side branch.
           node scripts/auto-fix-attempt.js "$BRANCH" || {
             echo "Auto-fix could not produce a confident change — posting comment only."
-            gh pr comment "${{ github.event.pull_request.number }}" --body \
+            gh pr comment "$PR_NUMBER" --body \
               "🤖 **gatling auto-fix skipped** — failure was structural or model couldn't agree on a minimal fix. See run ${{ github.run_id }} for logs."
             exit 0
           }
-          # Open (or update) a PR from the side branch into the original head.
           gh pr create \
-            --base "${{ github.event.pull_request.head.ref }}" \
+            --base "$HEAD_REF" \
             --head "$BRANCH" \
-            --title "🤖 auto-fix attempt for ${{ github.event.pull_request.title }}" \
+            --title "🤖 auto-fix attempt for $PR_TITLE" \
             --body "Auto-generated fix attempt. **Do not merge without human review.** Run: ${{ github.run_id }}" \
-            --draft || gh pr edit "${{ github.event.pull_request.number }}" --add-label "auto-fix-attempt"
+            --draft || gh pr edit "$PR_NUMBER" --add-label "auto-fix-attempt"
 
-  # ──────────────────────────────────────────────────────────────────────────
-  # 5. SUMMARY — single comment with the verdict so the PR is readable
-  # ──────────────────────────────────────────────────────────────────────────
+  # 5. SUMMARY — single comment with the verdict so the PR is readable.
   summary:
     name: summary
     needs: [static, tests, ai-review, auto-fix]
     if: always()
     runs-on: ubuntu-latest
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
-      - uses: actions/checkout@v4
       - name: Post summary comment
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "## 🐦‍⬛ gatling summary" > /tmp/summary.md
-          echo "" >> /tmp/summary.md
-          echo "| job | result |" >> /tmp/summary.md
-          echo "|---|---|" >> /tmp/summary.md
-          echo "| static | ${{ needs.static.result }} |" >> /tmp/summary.md
-          echo "| tests | ${{ needs.tests.result }} |" >> /tmp/summary.md
-          echo "| ai-review | ${{ needs.ai-review.result }} |" >> /tmp/summary.md
-          echo "| auto-fix | ${{ needs.auto-fix.result }} |" >> /tmp/summary.md
-          echo "" >> /tmp/summary.md
-          echo "Run: ${{ github.run_id }}" >> /tmp/summary.md
-          gh pr comment "${{ github.event.pull_request.number }}" --body "$(cat /tmp/summary.md)" || true
+          {
+            echo "## 🐦‍⬛ gatling summary"
+            echo ""
+            echo "| job | result |"
+            echo "|---|---|"
+            echo "| static | ${{ needs.static.result }} |"
+            echo "| tests | ${{ needs.tests.result }} |"
+            echo "| ai-review | ${{ needs.ai-review.result }} |"
+            echo "| auto-fix | ${{ needs.auto-fix.result }} |"
+            echo ""
+            echo "Run: ${{ github.run_id }}"
+          } > /tmp/summary.md
+          gh pr comment "$PR_NUMBER" --body "$(cat /tmp/summary.md)" || true

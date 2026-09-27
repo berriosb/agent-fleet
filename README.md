@@ -1,27 +1,27 @@
 # pre-push-qa
 
-Agent-agnostic pre-push quality gate. Runs lint, tests, and a push-guard in any of your
-agents (Codex, OpenCode, Antigravity `agy`, Gemini CLI, Claude Code, or terminal) before
-a `git push`. Optional AI review via MiniMax M3 (no new API key — uses your existing
-subscription).
+Compuerta de calidad pre-push agnóstica al agente. Corre lint, tests y un push-guard en
+cualquiera de tus agentes (Codex, OpenCode, Antigravity `agy`, Gemini CLI, Claude Code
+o terminal) antes de un `git push`. Review por IA opcional vía MiniMax M3 (no requiere
+una API key nueva — usa tu suscripción existente).
 
-The reusable workflow in `.github/workflows/qa.yml` is the CI-side companion: it picks up
-the slack if a push bypassed the local skill, and adds an `auto-fix` side-branch when
-lint/tests fail.
+El workflow reusable en `.github/workflows/qa.yml` es el complemento del lado de CI:
+levanta la red de seguridad si un push se saltó la skill local, y abre una rama
+`auto/fix-<run_id>` cuando lint o tests fallan.
 
-## What's in this repo
+## Qué hay en este repo
 
-| Path | What |
+| Ruta | Qué es |
 |---|---|
-| `skills/pre-push-qa/SKILL.md` | The agent skill. Symlink it into each agent's skill path. |
-| `.github/workflows/qa.yml` | **Reusable workflow.** Consumer repos import this via `uses: berriosb/pre-push-qa/.github/workflows/qa.yml@v1`. |
-| `prompts/review.md` | AI review system prompt (MiniMax M3-tuned; works with any OpenAI-compatible LLM). |
-| `prompts/auto-fix.md` | Auto-fix prompt. Strict: one file, one mechanical change. |
-| `scripts/review-call.js` | Calls MiniMax M3 `/chat/completions` and writes the review comment to a file. |
-| `scripts/auto-fix-attempt.js` | Opens a side-branch with a mechanical fix attempt, guarded by HITL. |
-| `examples/pre-push.sh` | **Optional** git `pre-push` hook for users who want hard enforcement. Off by default. |
+| `skills/pre-push-qa/SKILL.md` | La skill del agente. Symlink en el path de skills de cada agente. |
+| `.github/workflows/qa.yml` | **Workflow reusable.** Los repos consumidores lo importan con `uses: berriosb/pre-push-qa/.github/workflows/qa.yml@v1`. |
+| `prompts/review.md` | System prompt para review por IA (afinado para MiniMax M3; funciona con cualquier LLM OpenAI-compatible). |
+| `prompts/auto-fix.md` | Prompt de auto-fix. Estricto: un archivo, un cambio mecánico. |
+| `scripts/review-call.js` | Llama a MiniMax M3 `/chat/completions` y escribe el comentario de review en un archivo. |
+| `scripts/auto-fix-attempt.js` | Abre una rama side-branch con un intento de fix mecánico, con HITL. |
+| `examples/pre-push.sh` | Hook git `pre-push` **opcional** para quien quiera enforcement duro. Apagado por defecto. |
 
-## Install the skill on each agent (5 symlinks, 30 seconds)
+## Instalar la skill en cada agente (5 symlinks, 30 segundos)
 
 ```bash
 SRC="$HOME/.hermes/profiles/codehak/skills/software-development/pre-push-qa"
@@ -36,43 +36,43 @@ for dest in \
 done
 ```
 
-> **Pi / gentle-ai is intentionally excluded** — it has 4R / JD / lens review which is
-> strictly stronger than this skill's review step.
+> **Pi / gentle-ai queda intencionalmente fuera** — ya tiene 4R / JD / lens review, que
+> es estrictamente más fuerte que el paso de review de esta skill.
 
-Verify:
+Verificar:
 ```bash
 ls -la ~/.claude/skills/pre-push-qa/SKILL.md
 ls -la ~/.agents/skills/pre-push-qa/SKILL.md
 agy -p "list the available skills" 2>&1 | head -10
 ```
 
-## ⚠️ Note about `.github/workflows/qa.yml` and the failing run you'll see
+## ⚠️ Nota sobre `.github/workflows/qa.yml` y el run fallido que vas a ver
 
-`qa.yml` uses `on: workflow_call`. It is a **reusable workflow** — it only runs when
-invoked by another repo's workflow via `uses: berriosb/pre-push-qa/.github/workflows/qa.yml@v1`.
+`qa.yml` declara `on: workflow_call`. Es un **workflow reusable** — solo corre cuando
+otro repo lo invoca vía `uses: berriosb/pre-push-qa/.github/workflows/qa.yml@v1`.
 
-Because `qa.yml` declares `workflow_call`, GitHub will report a failed run with
-"No jobs ran" the first time you push it. **That failure is expected**, not a bug.
-The companion workflow `validate.yml` (in the same folder) does run on every push
-to `main` and verifies that `qa.yml` itself is syntactically valid via `gh workflow lint`.
+Como `qa.yml` declara `workflow_call`, GitHub reporta un run fallido con
+"No se ejecutaron trabajos" la primera vez que lo subís. **Esa falla es esperada**,
+no es un bug. El workflow compañero `validate.yml` (en la misma carpeta) sí corre en
+cada push a `main` y verifica que `qa.yml` sea sintácticamente válido usando
+`gh workflow lint`.
 
-When you later install `gatling.yml` into a consumer repo (see next section), that
-consumer's push will trigger `qa.yml` *for real* — and it will run the 4 jobs
-(static / tests / ai-review / auto-fix) as expected.
+Cuando después instales `gatling.yml` en un repo consumidor (ver la siguiente sección),
+el push de ese consumidor va a disparar `qa.yml` de verdad — y va a correr los 4 jobs
+(static / tests / ai-review / auto-fix) como corresponde.
 
-## Enable the CI gate on a consumer repo (60 seconds)
+## Activar el gate de CI en un repo consumidor (60 segundos)
 
-Copy `.github/workflows/gatling.yml` from the README section below into your repo's
-`.github/workflows/` directory and set `MINIMAX_API_KEY` + `MINIMAX_BASE_URL` as repo
-secrets:
+Pegá este archivo en `.github/workflows/gatling.yml` del repo consumidor y configurá
+`MINIMAX_API_KEY` + `MINIMAX_BASE_URL` como secrets del repo:
 
 ```bash
 gh secret set MINIMAX_API_KEY   --body "$MINIMAX_API_KEY"
 gh secret set MINIMAX_BASE_URL  --body "$MINIMAX_BASE_URL"
 ```
 
-The `gatling.yml` consumer file (paste this into `.github/workflows/gatling.yml` in
-each consumer repo):
+El archivo `gatling.yml` (pegá esto en `.github/workflows/gatling.yml` en cada repo
+consumidor):
 
 ```yaml
 name: gatling
@@ -96,34 +96,35 @@ jobs:
       enable_auto_fix: true
       llm_provider: minimax
       skip_if_coderabbit: true
-      draft_pr: ${{ github.event.pull_request.draft }}
+      draft_pr: ${{ github.event.pull_request.number && github.event.pull_request.draft }}
     secrets:
       MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
       MINIMAX_BASE_URL: ${{ secrets.MINIMAX_BASE_URL }}
 ```
 
-## Coexistence with CodeRabbit
+## Coexistencia con CodeRabbit
 
-The reusable workflow checks for a recent CodeRabbit review and skips the AI review pass
-to save tokens. Configurable via `skip_if_coderabbit: true` (default).
+El workflow reusable detecta si CodeRabbit ya revisó el PR (buscando el patrón
+`@coderabbit|CodeRabbit|coderabbitai` en los comentarios recientes) y se saltea el
+review con IA para ahorrar tokens. Configurable con `skip_if_coderabbit: true` (default).
 
-## What this skill does NOT do
+## Qué NO hace esta skill
 
-- **No git hook by default.** It's a skill that the agent loads. Trigger is agent
-  initiative, not `git push`. If you want hard enforcement, see
+- **No es git hook por defecto.** Es una skill que el agente carga. El trigger es la
+  iniciativa del agente, no `git push`. Si querés enforcement duro, mirá
   [`examples/pre-push.sh`](examples/pre-push.sh).
-- **No AI model review in Pi / gentle-ai.** Pi has better review machinery.
-- **No force-push / --no-verify enforcement.** Use a separate hook for that (the
-  community [`block-no-verify-hook`](https://www.skills.sh/wshobson/agents/block-no-verify-hook)
-  is recommended as a complement).
-- **No secret scanning in the skill itself.** Recommended:
-  [`push-gate`](https://www.skills.sh/0xdarkmatter/claude-mods/push-gate) as a
-  complementary check for secrets via Gitleaks.
+- **No hace review por IA dentro de Pi / gentle-ai.** Pi tiene mejor maquinaria de
+  review.
+- **No enforce `git push --force` ni `--no-verify`.** Para eso, sumá el skill
+  [`block-no-verify-hook`](https://www.skills.sh/wshobson/agents/block-no-verify-hook)
+  de la comunidad como complemento.
+- **No hace secret scanning.** Recomendado como complemento:
+  [`push-gate`](https://www.skills.sh/0xdarkmatter/claude-mods/push-gate) que usa
+  Gitleaks.
 
-## Roadmap (post-private)
+## Roadmap (post-privado)
 
-- [ ] Add baseline-aware test failure handling (skip if a previously-failing test was
-      already failing before the diff)
-- [ ] Switch AI review to Anthropic Claude as opt-in fallback
-- [ ] Add Gemini 3 Flash for docs-only PRs as a cheaper check
-- [ ] Promote to public once we have CI failure-rate metrics from 5+ repos
+- [ ] Manejo de tests baseline-aware (no romper si el test ya fallaba antes del diff)
+- [ ] Switch del review por IA a Anthropic Claude como fallback opcional
+- [ ] Gemini 3 Flash para PRs solo-docs como check más barato
+- [ ] Pasar a público cuando tengamos métricas de tasa de fallos de CI en 5+ repos

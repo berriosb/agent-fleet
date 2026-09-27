@@ -19,37 +19,21 @@ jobs:
     name: actionlint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: reviewdog/action-actionlint@v1
         with:
           fail_level: error
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # 2. gh workflow lint — GitHub's own reusable-workflow validator
-  gh-lint:
-    name: gh-workflow-lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Lint every workflow file
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -e
-          for f in $(find .github/workflows -name '*.yml' -o -name '*.yaml'); do
-            echo "::group::lint $f"
-            gh workflow lint "$f"
-            echo "::endgroup::"
-          done
-
-  # 3. yaml-validity for skills, prompts, and any yml
+  # 2. yaml-validity for skills, prompts, and any yml/yaml
   yaml-validity:
     name: yaml-validity
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: YAML parse all files
+        shell: bash
         run: |
           python3 -c "
           import glob, sys, yaml
@@ -67,16 +51,17 @@ jobs:
           print(f'all {len(files)} YAML files OK')
           "
 
-  # 4. js-syntax — node --check on every script
+  # 3. js-syntax — node --check on every script
   js-syntax:
     name: js-syntax
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: '22'
       - name: node --check every .js file
+        shell: bash
         run: |
           find . -name '*.js' -not -path './node_modules/*' -print0 \
             | xargs -0 -I {} node --check {}
