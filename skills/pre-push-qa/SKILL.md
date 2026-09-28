@@ -79,15 +79,15 @@ Read these project files IN ORDER to pick commands (first match wins):
    INSTALL = 'pnpm install --frozen-lockfile'
    LINT = 'pnpm run lint --if-present'
    TYPECHECK = 'pnpm exec tsc --noEmit --if-present || true'
-   TEST = 'pnpm test -- --run --reporter=default 2>&1 | tail -40'
+   TEST = 'CI=true pnpm test --if-present 2>&1 | tail -40'
    BUILD = 'pnpm run build --if-present'
 
 # npm
-[ -f package-lock.json ]                     → STACK=npm
+[ -f package-lock.json ] || [ -f package.json ] → STACK=npm
    INSTALL = 'npm ci --ignore-scripts'
    LINT = 'npm run lint --if-present'
    TYPECHECK = 'npx tsc --noEmit --if-present || true'
-   TEST = 'npm test -- --passWithNoTests 2>&1 | tail -40'
+   TEST = 'CI=true npm test --if-present 2>&1 | tail -40'
    BUILD = 'npm run build --if-present'
 
 # Terraform
@@ -132,14 +132,14 @@ case "$STACK" in
     pnpm install --frozen-lockfile --ignore-scripts 2>/dev/null || STATUS=$?
     pnpm run lint --if-present || STATUS=$?
     pnpm exec tsc --noEmit --if-present 2>/dev/null || STATUS=$?
-    pnpm test -- --run 2>&1 | tail -40 || STATUS=$?
+    CI=true pnpm test --if-present 2>&1 | tail -40 || STATUS=$?
     pnpm run build --if-present || STATUS=$?
     ;;
   npm)
     npm ci --ignore-scripts 2>/dev/null || STATUS=$?
     npm run lint --if-present || STATUS=$?
     npx tsc --noEmit --if-present 2>/dev/null || STATUS=$?
-    npm test -- --passWithNoTests 2>&1 | tail -40 || STATUS=$?
+    CI=true npm test --if-present 2>&1 | tail -40 || STATUS=$?
     npm run build --if-present || STATUS=$?
     ;;
   terraform)

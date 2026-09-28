@@ -14,6 +14,7 @@ set -e
 
 # Resolve the repo root and git dir
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$REPO_ROOT"
 GIT_DIR="$(git rev-parse --git-dir 2>/dev/null || echo "$REPO_ROOT/.git")"
 CURRENT_HEAD="$(git rev-parse HEAD 2>/dev/null || echo "")"
 
@@ -31,7 +32,7 @@ if [ -n "$PRE_PUSH_QA_PATHS" ]; then
   esac
 else
   case "$REPO_ROOT" in
-    /home/*/Proyectos/*|/home/*/Work/*|/home/*/Projects/*|/Users/*/Proyectos/*|/Users/*/Work/*|/Users/*/Projects/*) ;;
+    */Proyectos/*|*/Work/*|*/Projects/*|*/code/*|*/dev/*|*/src/*|*/workspace/*|*/repos/*|*/git/*|*/Development/*|*/Code/*|*/Dev/*) ;;
     *) exit 0 ;;
   esac
 fi

@@ -19,7 +19,7 @@ has_code_files() {
 STACK="mixed"
 if [ -f pnpm-lock.yaml ]; then
   STACK="pnpm"
-elif [ -f package-lock.json ]; then
+elif [ -f package-lock.json ] || [ -f package.json ]; then
   STACK="npm"
 elif [ -f yarn.lock ]; then
   STACK="yarn"
@@ -127,7 +127,7 @@ case "$STACK" in
       echo "--> Running typescript check..."
       pnpm exec tsc --noEmit --if-present 2>/dev/null || STATUS=$?
       echo "--> Running pnpm tests..."
-      pnpm test -- --run 2>&1 | tail -30 || STATUS=$?
+      CI=true pnpm test --if-present 2>&1 | tail -30 || STATUS=$?
       echo "--> Running build check..."
       pnpm run build --if-present || STATUS=$?
     else
@@ -142,7 +142,7 @@ case "$STACK" in
       echo "--> Running typescript check..."
       npx --no-install tsc --noEmit --if-present 2>/dev/null || STATUS=$?
       echo "--> Running npm tests..."
-      npm test -- --passWithNoTests 2>&1 | tail -30 || STATUS=$?
+      CI=true npm test --if-present 2>&1 | tail -30 || STATUS=$?
       echo "--> Running build check..."
       npm run build --if-present || STATUS=$?
     else
@@ -157,7 +157,7 @@ case "$STACK" in
       echo "--> Running typescript check..."
       yarn run tsc --noEmit 2>/dev/null || STATUS=$?
       echo "--> Running yarn tests..."
-      yarn test 2>&1 | tail -30 || STATUS=$?
+      CI=true yarn test 2>&1 | tail -30 || STATUS=$?
       if grep -q '"build":' package.json 2>/dev/null; then
         echo "--> Running build check..."
         yarn run build || STATUS=$?
@@ -172,7 +172,7 @@ case "$STACK" in
       echo "--> Running bun lint..."
       bun run lint || STATUS=$?
       echo "--> Running bun tests..."
-      bun test 2>&1 | tail -30 || STATUS=$?
+      CI=true bun test 2>&1 | tail -30 || STATUS=$?
       if grep -q '"build":' package.json 2>/dev/null; then
         echo "--> Running build check..."
         bun run build || STATUS=$?
