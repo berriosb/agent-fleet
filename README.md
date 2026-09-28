@@ -52,6 +52,10 @@ for dest in \
     mkdir -p "$dest"
     ln -sf "$SRC/SKILL.md" "$dest/SKILL.md"
 done
+
+# Opcional: Ejecución global en terminal vía ~/.local/bin
+mkdir -p "$HOME/.local/bin"
+ln -sf "$HOME/Proyectos/pre-push-qa/scripts/run.sh" "$HOME/.local/bin/pre-push-qa"
 ```
 
 Verificar:
@@ -91,8 +95,10 @@ Cuando le dices a tu agente "hacé push", "subí los cambios" o "revisá antes d
 2. **Ejecuta static + tests:** Si algo falla, **detiene el push** y pide corregir antes de continuar.
 3. **Push-guard:** Valida que el árbol de trabajo esté limpio y que todas las comprobaciones hayan salido con código `0`.
 
-También puedes ejecutar este chequeo directamente desde tu terminal con:
+También puedes ejecutar este chequeo directamente desde tu terminal en cualquier proyecto con:
 ```bash
+pre-push-qa   # Si creaste el symlink en ~/.local/bin/pre-push-qa
+# o directamente desde la raíz del repo:
 ./scripts/run.sh
 ```
 Si pasa, crea el marcador de verificación en `.git/pre-push-qa-ok` con el hash del commit actual.

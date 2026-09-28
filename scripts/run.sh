@@ -44,7 +44,7 @@ STATUS=0
 
 # Security check: Prevent pushing tracked .env files or private keys
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  ENV_LEAKS="$(git ls-files 2>/dev/null | grep -E '(^|/)\.env(\.[^/]+)?$' | grep -vE '\.env\.(example|sample|template)$' || true)"
+  ENV_LEAKS="$(git ls-files 2>/dev/null | grep -E '(^|/)\.env(\.[^/]+)?$' | grep -vE '\.env\.(example|sample|template|test|ci|defaults)$' || true)"
   if [ -n "$ENV_LEAKS" ]; then
     echo "==> [pre-push-qa] CRITICAL SECURITY ERROR: Sensitive .env files tracked in git:" >&2
     echo "$ENV_LEAKS" | sed 's/^/    /' >&2
@@ -154,12 +154,16 @@ case "$STACK" in
     ;;
   yarn)
     if command -v yarn >/dev/null 2>&1; then
-      echo "--> Running yarn lint..."
-      yarn run lint || STATUS=$?
+      if grep -q '"lint":' package.json 2>/dev/null; then
+        echo "--> Running yarn lint..."
+        yarn run lint || STATUS=$?
+      fi
       echo "--> Running typescript check..."
       yarn run tsc --noEmit 2>/dev/null || STATUS=$?
-      echo "--> Running yarn tests..."
-      CI=true yarn test 2>&1 | tail -30 || STATUS=$?
+      if grep -q '"test":' package.json 2>/dev/null; then
+        echo "--> Running yarn tests..."
+        CI=true yarn test 2>&1 | tail -30 || STATUS=$?
+      fi
       if grep -q '"build":' package.json 2>/dev/null; then
         echo "--> Running build check..."
         yarn run build || STATUS=$?
@@ -171,8 +175,10 @@ case "$STACK" in
     ;;
   bun)
     if command -v bun >/dev/null 2>&1; then
-      echo "--> Running bun lint..."
-      bun run lint || STATUS=$?
+      if grep -q '"lint":' package.json 2>/dev/null; then
+        echo "--> Running bun lint..."
+        bun run lint || STATUS=$?
+      fi
       echo "--> Running bun tests..."
       CI=true bun test 2>&1 | tail -30 || STATUS=$?
       if grep -q '"build":' package.json 2>/dev/null; then

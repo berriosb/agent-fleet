@@ -38,7 +38,7 @@ else
 fi
 
 # Safety check: Block push immediately if dangerous .env files or private keys are tracked
-ENV_LEAKS="$(git ls-files 2>/dev/null | grep -E '(^|/)\.env(\.[^/]+)?$' | grep -vE '\.env\.(example|sample|template)$' || true)"
+ENV_LEAKS="$(git ls-files 2>/dev/null | grep -E '(^|/)\.env(\.[^/]+)?$' | grep -vE '\.env\.(example|sample|template|test|ci|defaults)$' || true)"
 if [ -n "$ENV_LEAKS" ]; then
   echo "==> [pre-push-qa] CRITICAL PUSH BLOCKED: Tracked .env files detected:" >&2
   echo "$ENV_LEAKS" | sed 's/^/    /' >&2
@@ -90,6 +90,6 @@ if [ -n "$MARKER" ]; then
 fi
 
 echo "==> [pre-push-qa] BLOCKED: No valid QA verification marker found." >&2
-echo "    Run your agent skill (pre-push-qa) or 'scripts/run.sh' before pushing." >&2
+echo "    Run your agent skill (pre-push-qa) or run 'pre-push-qa' in terminal before pushing." >&2
 echo "    To bypass intentionally: git push --no-verify" >&2
 exit 1

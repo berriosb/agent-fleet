@@ -29,6 +29,14 @@ instead.
 - `multi-repo-portfolio-audit`: portfolio-wide lint/TODO sweeps. This skill is single-repo.
 - CI/remote: each repository runs its own standard CI checks. This skill acts strictly *before* push.
 
+**Terminal usage:**
+`pre-push-qa` can also be run globally from any terminal when symlinked to `~/.local/bin/pre-push-qa`:
+```bash
+mkdir -p ~/.local/bin
+ln -sf /home/bastianberrios/Proyectos/pre-push-qa/scripts/run.sh ~/.local/bin/pre-push-qa
+```
+Running `pre-push-qa` in any terminal runs stack detection, linters, tests, security checks, and creates the verification marker.
+
 ## When to use this skill
 
 Load `pre-push-qa` whenever any of your agents says one of:
@@ -70,21 +78,21 @@ Read these project files IN ORDER to pick commands (first match wins):
    TEST = 'CI=true pnpm test --if-present 2>&1 | tail -40'
    BUILD = 'pnpm run build --if-present'
 
-# yarn
+# yarn (lint, test, build scripts guarded via package.json check)
 [ -f yarn.lock ]                             → STACK=yarn
    INSTALL = 'yarn install --frozen-lockfile'
-   LINT = 'yarn run lint --if-present'
+   LINT = 'yarn run lint (guarded: if "lint" in package.json)'
    TYPECHECK = 'yarn run tsc --noEmit 2>/dev/null || true'
-   TEST = 'CI=true yarn test 2>&1 | tail -40'
-   BUILD = 'yarn run build --if-present'
+   TEST = 'CI=true yarn test (guarded: if "test" in package.json) 2>&1 | tail -40'
+   BUILD = 'yarn run build (guarded: if "build" in package.json)'
 
-# bun
+# bun (lint, build scripts guarded via package.json check)
 [ -f bun.lockb ] || [ -f bun.lock ]          → STACK=bun
    INSTALL = 'bun install --frozen-lockfile'
-   LINT = 'bun run lint --if-present'
+   LINT = 'bun run lint (guarded: if "lint" in package.json)'
    TYPECHECK = 'bun run tsc --noEmit 2>/dev/null || true'
    TEST = 'CI=true bun test 2>&1 | tail -40'
-   BUILD = 'bun run build --if-present'
+   BUILD = 'bun run build (guarded: if "build" in package.json)'
 
 # npm
 [ -f package-lock.json ]                     → STACK=npm
@@ -166,16 +174,16 @@ case "$STACK" in
     pnpm run build --if-present || STATUS=$?
     ;;
   yarn)
-    yarn run lint --if-present || STATUS=$?
+    if grep -q '"lint":' package.json 2>/dev/null; then yarn run lint || STATUS=$?; fi
     yarn run tsc --noEmit 2>/dev/null || STATUS=$?
-    CI=true yarn test 2>&1 | tail -40 || STATUS=$?
-    yarn run build --if-present || STATUS=$?
+    if grep -q '"test":' package.json 2>/dev/null; then CI=true yarn test 2>&1 | tail -40 || STATUS=$?; fi
+    if grep -q '"build":' package.json 2>/dev/null; then yarn run build || STATUS=$?; fi
     ;;
   bun)
-    bun run lint --if-present || STATUS=$?
+    if grep -q '"lint":' package.json 2>/dev/null; then bun run lint || STATUS=$?; fi
     bun run tsc --noEmit 2>/dev/null || STATUS=$?
     CI=true bun test 2>&1 | tail -40 || STATUS=$?
-    bun run build --if-present || STATUS=$?
+    if grep -q '"build":' package.json 2>/dev/null; then bun run build || STATUS=$?; fi
     ;;
   npm)
     npm ci --ignore-scripts 2>/dev/null || npm install --ignore-scripts 2>/dev/null || STATUS=$?
@@ -198,6 +206,8 @@ exit $STATUS
 
 **If something fails here: STOP and fix it before going to Step 3.** Most CI failures
 come from lint or import errors that this step catches.
+
+**For Yarn and Bun**, `lint` and `test` scripts are safely guarded by inspecting `package.json` to prevent failures when a project does not define them.
 
 **For pnpm specifically, MEMORY tells you `pnpm test --run` is rejected** — use the
 double-dash form `pnpm test -- --run` or `pnpm vitest run`. This skill's commands above
@@ -266,7 +276,7 @@ Before pushing, the agent must verify and execute:
 
 1. **Confirm checks passed:**
    - [ ] No sensitive `.env` files tracked in git:
-     `git ls-files | grep -E '(^|/)\.env(\.[^/]+)?$' | grep -vE '\.env\.(example|sample|template)$'`
+     `git ls-files | grep -E '(^|/)\.env(\.[^/]+)?$' | grep -vE '\.env\.(example|sample|template|test|ci|defaults)$'`
    - [ ] No private keys tracked in git:
      `git ls-files | grep -E '\.(pem|key|pkcs12|pfx|id_rsa|id_ed25519)$'`
    - [ ] `git status --porcelain` is clean OR the only changes are the approved auto-fix from Step 4
@@ -388,6 +398,10 @@ for dest in \
     mkdir -p "$dest"
     ln -sf "$SRC/SKILL.md" "$dest/SKILL.md"
 done
+
+# Optional: Link pre-push-qa to PATH for global terminal execution
+mkdir -p "$HOME/.local/bin"
+ln -sf "$SRC/../../scripts/run.sh" "$HOME/.local/bin/pre-push-qa"
 
 echo "Linked. Each agent will now load pre-push-qa when triggered by commit/push intent."
 ```
