@@ -7,16 +7,33 @@ cd "$REPO_ROOT"
 
 echo "==> [pre-push-qa] Detecting repository stack..."
 
+has_code_files() {
+  find . -maxdepth 4 -type f \( \
+    -name "*.js" -o -name "*.ts" -o -name "*.jsx" -o -name "*.tsx" -o \
+    -name "*.py" -o -name "*.go" -o -name "*.rs" -o -name "*.sh" -o \
+    -name "*.tf" -o -name "Dockerfile*" -o -name "*.c" -o -name "*.cpp" -o \
+    -name "*.java" -o -name "*.rb" -o -name "*.php" \
+  \) -not -path "*/.*" -not -path "*node_modules*" -not -path "*vendor*" -not -path "*.venv*" -print -quit | grep -q .
+}
+
 STACK="mixed"
 if [ -f pnpm-lock.yaml ]; then
   STACK="pnpm"
 elif [ -f package-lock.json ]; then
   STACK="npm"
+elif [ -f yarn.lock ]; then
+  STACK="yarn"
+elif [ -f bun.lockb ] || [ -f bun.lock ]; then
+  STACK="bun"
 elif [ -f uv.lock ] || [ -f pyproject.toml ]; then
   STACK="python"
-elif compgen -G "*.tf" > /dev/null; then
+elif [ -f requirements.txt ] || [ -f setup.py ]; then
+  STACK="pip"
+elif compgen -G "*.tf" > /dev/null 2>&1 || find . -maxdepth 3 -name "*.tf" -not -path "*/.*" -print -quit | grep -q .; then
   STACK="terraform"
-elif find . -maxdepth 3 -name "*.md" -not -path "./node_modules/*" -print -quit | grep -q .; then
+elif [ -f Dockerfile ] || [ -f docker-compose.yml ] || [ -f docker-compose.yaml ]; then
+  STACK="docker"
+elif ! has_code_files && find . -maxdepth 3 -name "*.md" -not -path "*/.*" -not -path "*node_modules*" -print -quit | grep -q .; then
   STACK="docs"
 fi
 
@@ -26,48 +43,156 @@ STATUS=0
 case "$STACK" in
   python)
     if command -v uv >/dev/null 2>&1; then
-      echo "--> Running python lint..."
+      echo "--> Running python lint (ruff)..."
       uv run ruff check . --output-format=concise || STATUS=$?
-      echo "--> Running python tests..."
+      echo "--> Running python typecheck (mypy)..."
+      uv run mypy . --ignore-missing-imports 2>/dev/null || STATUS=$?
+      echo "--> Running python tests (pytest)..."
       uv run pytest -q --tb=line 2>&1 | tail -30 || STATUS=$?
+    elif command -v ruff >/dev/null 2>&1 || command -v pytest >/dev/null 2>&1; then
+      echo "--> uv not found, running available python tools..."
+      if command -v ruff >/dev/null 2>&1; then
+        ruff check . --output-format=concise || STATUS=$?
+      fi
+      if command -v mypy >/dev/null 2>&1; then
+        mypy . --ignore-missing-imports 2>/dev/null || STATUS=$?
+      fi
+      if command -v pytest >/dev/null 2>&1; then
+        pytest -q --tb=line 2>&1 | tail -30 || STATUS=$?
+      fi
     else
-      echo "--> uv not installed; skipping python checks."
+      echo "==> [pre-push-qa] ERROR: Python stack detected, but neither 'uv' nor python QA tools found in PATH." >&2
+      STATUS=1
+    fi
+    ;;
+  pip)
+    echo "--> Running pip project checks..."
+    local_found=0
+    if command -v ruff >/dev/null 2>&1; then
+      echo "--> Running ruff check..."
+      ruff check . --output-format=concise || STATUS=$?
+      local_found=1
+    fi
+    if command -v mypy >/dev/null 2>&1; then
+      echo "--> Running mypy..."
+      mypy . --ignore-missing-imports 2>/dev/null || STATUS=$?
+      local_found=1
+    fi
+    if command -v pytest >/dev/null 2>&1; then
+      echo "--> Running pytest..."
+      pytest -q --tb=line 2>&1 | tail -30 || STATUS=$?
+      local_found=1
+    elif command -v python3 >/dev/null 2>&1 && [ -d "tests" -o -d "test" ]; then
+      echo "--> Running unittest..."
+      python3 -m unittest discover -s . 2>&1 | tail -30 || STATUS=$?
+      local_found=1
+    fi
+    if [ "$local_found" -eq 0 ]; then
+      echo "==> [pre-push-qa] WARNING: pip stack detected, but no linter/test tools (ruff, mypy, pytest) found in PATH." >&2
+      echo "    Install ruff/pytest or use uv to enable checks." >&2
+      STATUS=1
     fi
     ;;
   pnpm)
     if command -v pnpm >/dev/null 2>&1; then
       echo "--> Running pnpm lint..."
       pnpm run lint --if-present || STATUS=$?
+      echo "--> Running typescript check..."
+      pnpm exec tsc --noEmit --if-present 2>/dev/null || STATUS=$?
       echo "--> Running pnpm tests..."
       pnpm test -- --run 2>&1 | tail -30 || STATUS=$?
+    else
+      echo "==> [pre-push-qa] ERROR: 'pnpm' is required for this stack but not installed or not in PATH." >&2
+      STATUS=1
     fi
     ;;
   npm)
     if command -v npm >/dev/null 2>&1; then
       echo "--> Running npm lint..."
       npm run lint --if-present || STATUS=$?
+      echo "--> Running typescript check..."
+      npx --no-install tsc --noEmit --if-present 2>/dev/null || STATUS=$?
       echo "--> Running npm tests..."
       npm test -- --passWithNoTests 2>&1 | tail -30 || STATUS=$?
+    else
+      echo "==> [pre-push-qa] ERROR: 'npm' is required for this stack but not installed or not in PATH." >&2
+      STATUS=1
+    fi
+    ;;
+  yarn)
+    if command -v yarn >/dev/null 2>&1; then
+      echo "--> Running yarn lint..."
+      yarn run lint || STATUS=$?
+      echo "--> Running typescript check..."
+      yarn run tsc --noEmit 2>/dev/null || STATUS=$?
+      echo "--> Running yarn tests..."
+      yarn test 2>&1 | tail -30 || STATUS=$?
+    else
+      echo "==> [pre-push-qa] ERROR: 'yarn' is required for this stack but not installed or not in PATH." >&2
+      STATUS=1
+    fi
+    ;;
+  bun)
+    if command -v bun >/dev/null 2>&1; then
+      echo "--> Running bun lint..."
+      bun run lint || STATUS=$?
+      echo "--> Running bun tests..."
+      bun test 2>&1 | tail -30 || STATUS=$?
+    else
+      echo "==> [pre-push-qa] ERROR: 'bun' is required for this stack but not installed or not in PATH." >&2
+      STATUS=1
     fi
     ;;
   terraform)
     if command -v terraform >/dev/null 2>&1; then
+      echo "--> Running terraform fmt check..."
       terraform fmt -check -recursive || STATUS=$?
+    else
+      echo "==> [pre-push-qa] ERROR: 'terraform' is required for this stack but not installed or not in PATH." >&2
+      STATUS=1
+    fi
+    ;;
+  docker)
+    if command -v hadolint >/dev/null 2>&1; then
+      echo "--> Running hadolint..."
+      hadolint Dockerfile || STATUS=$?
+    else
+      echo "--> hadolint not found; skipping Dockerfile check."
     fi
     ;;
   docs)
     echo "--> Docs-only repository — static checks passed."
     ;;
-  *)
-    echo "--> Mixed or unknown stack — running best-effort."
+  mixed|*)
+    echo "--> Mixed or unknown stack — running best-effort checks..."
+    if [ -f package.json ] && command -v npm >/dev/null 2>&1; then
+      npm test --if-present 2>/dev/null || STATUS=$?
+    fi
+    if command -v shellcheck >/dev/null 2>&1; then
+      if find . -maxdepth 3 -name "*.sh" -not -path "*/.*" -print -quit | grep -q .; then
+        echo "--> Running shellcheck on shell scripts..."
+        find . -maxdepth 3 -name "*.sh" -not -path "*/.*" -exec shellcheck {} + || STATUS=$?
+      fi
+    fi
     ;;
 esac
 
+GIT_DIR="$(git rev-parse --git-dir 2>/dev/null || echo "$REPO_ROOT/.git")"
+CURRENT_HEAD="$(git rev-parse HEAD 2>/dev/null || echo "ok")"
+
 if [ "$STATUS" -eq 0 ]; then
-  touch "$REPO_ROOT/.pre-push-qa-ok"
-  echo "==> [pre-push-qa] All checks passed successfully. Marker .pre-push-qa-ok created."
+  if [ -d "$GIT_DIR" ]; then
+    echo "$CURRENT_HEAD" > "$GIT_DIR/pre-push-qa-ok"
+    rm -f "$REPO_ROOT/.pre-push-qa-ok" 2>/dev/null || true
+  else
+    echo "$CURRENT_HEAD" > "$REPO_ROOT/.pre-push-qa-ok" 2>/dev/null || true
+  fi
+  echo "==> [pre-push-qa] All checks passed successfully. Marker created for commit: ${CURRENT_HEAD:0:7}"
   exit 0
 else
+  if [ -d "$GIT_DIR" ]; then
+    rm -f "$GIT_DIR/pre-push-qa-ok"
+  fi
   rm -f "$REPO_ROOT/.pre-push-qa-ok"
   echo "==> [pre-push-qa] FAIL: Checks exited with status $STATUS. Refusing push."
   exit 1

@@ -62,11 +62,17 @@ This skill assumes the **executing agent** provides context. Specifically:
 Read these project files IN ORDER to pick commands (first match wins):
 
 ```bash
-# Python
+# Python (uv)
 [ -f uv.lock ] || [ -f pyproject.toml ]    → STACK=python
    LINT = 'uv run ruff check . --output-format=concise || true'
    TYPECHECK = 'uv run mypy . --ignore-missing-imports || true'
    TEST = 'uv run pytest -q --tb=line 2>&1 | tail -40'
+
+# Python (pip)
+[ -f requirements.txt ] || [ -f setup.py ] → STACK=pip
+   LINT = 'ruff check . --output-format=concise || true'
+   TYPECHECK = 'mypy . --ignore-missing-imports || true'
+   TEST = 'pytest -q --tb=line 2>&1 | tail -40'
 
 # pnpm
 [ -f pnpm-lock.yaml ]                        → STACK=pnpm
@@ -86,9 +92,13 @@ Read these project files IN ORDER to pick commands (first match wins):
 [ -f "*.tf" ] || ls *.tf 2>/dev/null         → STACK=terraform
    LINT = 'terraform fmt -check -recursive || terraform validate'
 
-# Docs-only
-find . -maxdepth 3 -name "*.md" -not -path "*/node_modules/*" | grep -q . \
-                                               → STACK=docs
+# Docker
+[ -f Dockerfile ] || [ -f docker-compose.yml ] → STACK=docker
+   LINT = 'hadolint Dockerfile || true'
+
+# Docs-only (ONLY when repository has zero code files: no .py, .ts, .js, .go, .rs, .tf, .sh, etc.)
+# If the repository contains code files or manifests, NEVER classify as docs-only.
+no code files && find . -maxdepth 3 -name "*.md" → STACK=docs
    # Nothing to lint/test; verify markdown with 'markdownlint --if-present'
 ```
 
@@ -108,19 +118,31 @@ case "$STACK" in
   python)
     uv sync --frozen 2>/dev/null || uv sync || STATUS=$?
     uv run ruff check . --output-format=concise || STATUS=$?
+    uv run mypy . --ignore-missing-imports 2>/dev/null || STATUS=$?
     uv run pytest -q --tb=line 2>&1 | tail -40 || STATUS=$?
+    ;;
+  pip)
+    ruff check . --output-format=concise 2>/dev/null || STATUS=$?
+    mypy . --ignore-missing-imports 2>/dev/null || STATUS=$?
+    pytest -q --tb=line 2>&1 | tail -40 || STATUS=$?
     ;;
   pnpm)
     pnpm install --frozen-lockfile --ignore-scripts 2>/dev/null || STATUS=$?
     pnpm run lint --if-present || STATUS=$?
+    pnpm exec tsc --noEmit --if-present 2>/dev/null || STATUS=$?
     pnpm test -- --run 2>&1 | tail -40 || STATUS=$?
     ;;
   npm)
     npm ci --ignore-scripts 2>/dev/null || STATUS=$?
+    npm run lint --if-present || STATUS=$?
+    npx tsc --noEmit --if-present 2>/dev/null || STATUS=$?
     npm test -- --passWithNoTests 2>&1 | tail -40 || STATUS=$?
     ;;
   terraform)
     terraform fmt -check -recursive || STATUS=$?
+    ;;
+  docker)
+    hadolint Dockerfile 2>/dev/null || STATUS=$?
     ;;
   docs) echo "docs-only — skipping lint/tests";;
   *)   echo "unknown stack — running best-effort";;
@@ -161,14 +183,33 @@ in Step 2 are the load-bearing part.
 
 If the user said "just push it / don't stop on CI failures", skip Step 4 entirely.
 
-## Step 5 — Push guard
+## Step 5 — Push guard & Verification Marker
 
-Before pushing, the agent should confirm:
+Before pushing, the agent must verify and execute:
 
-- [ ] `git status --porcelain` is empty OR the only changes are the auto-fix from Step 4
-- [ ] All lint commands in Step 2 exited 0
-- [ ] All test commands in Step 2 exited 0
-- [ ] User has approved the commit message (or agreed to auto-generated `[skip ci]` prefix)
+1. **Confirm checks passed:**
+   - [ ] `git status --porcelain` is empty OR the only changes are the auto-fix from Step 4
+   - [ ] All lint commands in Step 2 exited 0
+   - [ ] All typecheck commands in Step 2 exited 0
+   - [ ] All test commands in Step 2 exited 0
+   - [ ] User has approved the commit message (or agreed to auto-generated `[skip ci]` prefix)
+
+2. **Generate the Git Hook Verification Marker:**
+   If the local environment uses the pre-push hook (`examples/pre-push.sh`), it requires a valid marker matching the current HEAD commit.
+   Create the marker before running `git push`:
+   ```bash
+   GIT_DIR="$(git rev-parse --git-dir 2>/dev/null || echo .git)"
+   CURRENT_HEAD="$(git rev-parse HEAD 2>/dev/null || echo "ok")"
+   if [ -d "$GIT_DIR" ]; then
+     echo "$CURRENT_HEAD" > "$GIT_DIR/pre-push-qa-ok"
+   else
+     echo "$CURRENT_HEAD" > .pre-push-qa-ok
+   fi
+   ```
+   *(Writing inside `.git/` avoids untracked file pollution and keeps `git status` clean in consumer repos).*
+
+3. **Execute Push:**
+   Run `git push origin <branch>`. The pre-push hook verifies the commit hash and consumes the marker.
 
 **Refuse to push** if any check fails. Surface the failure and let the user decide.
 

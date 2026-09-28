@@ -14,7 +14,7 @@ sin necesidad de configurar secrets, llaves externas ni workflows invasivos en t
 | Ruta | Qué es |
 |---|---|
 | `skills/pre-push-qa/SKILL.md` | La skill del agente. Symlink en el path de skills de cada agente. |
-| `scripts/run.sh` | Runner local en bash que detecta el stack, corre linter/tests y genera el marcador `.pre-push-qa-ok`. |
+| `scripts/run.sh` | Runner local en bash que detecta el stack, corre linter/tests y genera el marcador `.git/pre-push-qa-ok`. |
 | `examples/pre-push.sh` | Hook git `pre-push` **opcional** para quien quiera enforcement duro en la terminal. Apagado por defecto. |
 | `prompts/review.md` | System prompt para review de código local por el propio agente (opcional, agnóstico al LLM). |
 | `prompts/auto-fix.md` | Prompt de auto-fix mecánico para el agente bajo supervisión humana (HITL). |
@@ -66,7 +66,7 @@ También puedes ejecutar este chequeo directamente desde tu terminal con:
 ```bash
 ./scripts/run.sh
 ```
-Si pasa, crea el marcador `.pre-push-qa-ok` en la raíz del repo.
+Si pasa, crea el marcador de verificación en `.git/pre-push-qa-ok` con el hash del commit actual.
 
 ## Hook de git opcional (Enforcement duro)
 
@@ -80,7 +80,7 @@ git config --global core.hooksPath ~/.githooks
 ```
 
 El hook bloqueará cualquier push en la terminal a menos que:
-1. Exista el marcador `.pre-push-qa-ok` creado por la skill o `run.sh`, o
+1. Exista el marcador válido en `.git/pre-push-qa-ok` correspondiente al commit HEAD actual (creado por la skill o `run.sh`), el cual es consumido al hacer push para evitar reusar aprobaciones viejas, o
 2. Se use `git push --no-verify` de manera consciente.
 
 ## Qué NO hace esta skill

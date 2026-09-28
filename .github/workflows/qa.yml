@@ -93,7 +93,7 @@ jobs:
             echo "stack=docker" >> "$GITHUB_OUTPUT"
           elif find . -maxdepth 4 -name "*.tf" -not -path "./node_modules/*" -print -quit | grep -q .; then
             echo "stack=terraform" >> "$GITHUB_OUTPUT"
-          elif find . -maxdepth 3 -name "*.md" -not -path "./node_modules/*" -print -quit | grep -q .; then
+          elif ! find . -maxdepth 4 -type f \( -name "*.js" -o -name "*.ts" -o -name "*.jsx" -o -name "*.tsx" -o -name "*.py" -o -name "*.go" -o -name "*.rs" -o -name "*.sh" -o -name "*.tf" -o -name "Dockerfile*" -o -name "*.c" -o -name "*.cpp" -o -name "*.java" -o -name "*.rb" -o -name "*.php" \) -not -path "*/.*" -not -path "*node_modules*" -not -path "*vendor*" -not -path "*.venv*" -print -quit | grep -q . && find . -maxdepth 3 -name "*.md" -not -path "./node_modules/*" -print -quit | grep -q .; then
             echo "stack=docs" >> "$GITHUB_OUTPUT"
           else
             echo "stack=mixed" >> "$GITHUB_OUTPUT"
