@@ -80,6 +80,7 @@ Read these project files IN ORDER to pick commands (first match wins):
    LINT = 'pnpm run lint --if-present'
    TYPECHECK = 'pnpm exec tsc --noEmit --if-present || true'
    TEST = 'pnpm test -- --run --reporter=default 2>&1 | tail -40'
+   BUILD = 'pnpm run build --if-present'
 
 # npm
 [ -f package-lock.json ]                     → STACK=npm
@@ -87,6 +88,7 @@ Read these project files IN ORDER to pick commands (first match wins):
    LINT = 'npm run lint --if-present'
    TYPECHECK = 'npx tsc --noEmit --if-present || true'
    TEST = 'npm test -- --passWithNoTests 2>&1 | tail -40'
+   BUILD = 'npm run build --if-present'
 
 # Terraform
 [ -f "*.tf" ] || ls *.tf 2>/dev/null         → STACK=terraform
@@ -131,12 +133,14 @@ case "$STACK" in
     pnpm run lint --if-present || STATUS=$?
     pnpm exec tsc --noEmit --if-present 2>/dev/null || STATUS=$?
     pnpm test -- --run 2>&1 | tail -40 || STATUS=$?
+    pnpm run build --if-present || STATUS=$?
     ;;
   npm)
     npm ci --ignore-scripts 2>/dev/null || STATUS=$?
     npm run lint --if-present || STATUS=$?
     npx tsc --noEmit --if-present 2>/dev/null || STATUS=$?
     npm test -- --passWithNoTests 2>&1 | tail -40 || STATUS=$?
+    npm run build --if-present || STATUS=$?
     ;;
   terraform)
     terraform fmt -check -recursive || STATUS=$?
@@ -188,10 +192,13 @@ If the user said "just push it / don't stop on CI failures", skip Step 4 entirel
 Before pushing, the agent must verify and execute:
 
 1. **Confirm checks passed:**
-   - [ ] `git status --porcelain` is empty OR the only changes are the auto-fix from Step 4
+   - [ ] `git status --porcelain` is clean OR the only changes are the auto-fix from Step 4
    - [ ] All lint commands in Step 2 exited 0
    - [ ] All typecheck commands in Step 2 exited 0
    - [ ] All test commands in Step 2 exited 0
+   - [ ] Build check passed (`build --if-present` exited 0)
+   - [ ] No `.env` or private keys tracked in git (`git ls-files | grep '\.env'`)
+   - [ ] CI Secret Independence: Tests do NOT depend on unmocked local-only environment variables missing from CI
    - [ ] User has approved the commit message (or agreed to auto-generated `[skip ci]` prefix)
 
 2. **Generate the Git Hook Verification Marker:**
@@ -342,6 +349,8 @@ agy -p "test that you can see the pre-push-qa skill by listing skills" 2>&1 | he
 - **Lockfile mismatch after migration (Ubuntu→Arch, etc.)** — if `pnpm install` fails
   with `Cannot find module 'eslint/.../formatters/stylish'`, the right move is the
   bypass: `CI=1 pnpm install --config.confirmModulesPurge=false`. Don't try `npm install`.
+- **Never track `.env` files or private keys** — any staged `.env` file (except `.env.example`/`.env.sample`) will trigger GitHub Secret Scanning and block pushes remotely. Verify with `git ls-files | grep '\.env'`.
+- **Do NOT rely on local unmocked environment variables** — tests that pass only because your local machine has a `.env` file with live API keys will FAIL in GitHub Actions CI where those secrets do not exist. Always mock external APIs or provide CI fallback values in tests.
 
 ## Verification before reporting
 

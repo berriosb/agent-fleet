@@ -36,6 +36,28 @@ else
   esac
 fi
 
+# Safety check: Block push immediately if dangerous .env files or private keys are tracked
+ENV_LEAKS="$(git ls-files 2>/dev/null | grep -E '(^|/)\.env(\.[^/]+)?$' | grep -vE '\.env\.(example|sample|template)$' || true)"
+if [ -n "$ENV_LEAKS" ]; then
+  echo "==> [pre-push-qa] CRITICAL PUSH BLOCKED: Tracked .env files detected:" >&2
+  echo "$ENV_LEAKS" | sed 's/^/    /' >&2
+  echo "    Untrack before pushing: git rm --cached <file>" >&2
+  exit 1
+fi
+
+KEY_LEAKS="$(git ls-files 2>/dev/null | grep -E '\.(pem|key|pkcs12|pfx|id_rsa|id_ed25519)$' || true)"
+if [ -n "$KEY_LEAKS" ]; then
+  echo "==> [pre-push-qa] CRITICAL PUSH BLOCKED: Private key files tracked in git:" >&2
+  echo "$KEY_LEAKS" | sed 's/^/    /' >&2
+  echo "    Untrack before pushing: git rm --cached <file>" >&2
+  exit 1
+fi
+
+# Notice if pushing with uncommitted working tree
+if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+  echo "==> [pre-push-qa] NOTICE: Pushing while working tree has uncommitted changes." >&2
+fi
+
 # Hard mode (uncomment to run QA script on every push instead of checking marker):
 # bash "$REPO_ROOT/scripts/run.sh" && exit 0
 

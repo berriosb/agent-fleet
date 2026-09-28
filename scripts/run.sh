@@ -40,6 +40,33 @@ fi
 echo "==> [pre-push-qa] Stack detected: $STACK"
 STATUS=0
 
+# Security check: Prevent pushing tracked .env files or private keys
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  ENV_LEAKS="$(git ls-files 2>/dev/null | grep -E '(^|/)\.env(\.[^/]+)?$' | grep -vE '\.env\.(example|sample|template)$' || true)"
+  if [ -n "$ENV_LEAKS" ]; then
+    echo "==> [pre-push-qa] CRITICAL SECURITY ERROR: Sensitive .env files tracked in git:" >&2
+    echo "$ENV_LEAKS" | sed 's/^/    /' >&2
+    echo "    Untrack with: git rm --cached <file>" >&2
+    STATUS=1
+  fi
+
+  KEY_LEAKS="$(git ls-files 2>/dev/null | grep -E '\.(pem|key|pkcs12|pfx|id_rsa|id_ed25519)$' || true)"
+  if [ -n "$KEY_LEAKS" ]; then
+    echo "==> [pre-push-qa] CRITICAL SECURITY ERROR: Private key files tracked in git:" >&2
+    echo "$KEY_LEAKS" | sed 's/^/    /' >&2
+    echo "    Untrack with: git rm --cached <file>" >&2
+    STATUS=1
+  fi
+
+  # Working tree notice
+  DIRTY_FILES="$(git status --porcelain 2>/dev/null || true)"
+  if [ -n "$DIRTY_FILES" ]; then
+    echo "==> [pre-push-qa] NOTICE: Working tree has uncommitted or unstaged changes:"
+    echo "$DIRTY_FILES" | head -5 | sed 's/^/    /'
+    echo "    Note: GitHub Actions CI will test only committed code in HEAD."
+  fi
+fi
+
 case "$STACK" in
   python)
     if command -v uv >/dev/null 2>&1; then
@@ -101,6 +128,8 @@ case "$STACK" in
       pnpm exec tsc --noEmit --if-present 2>/dev/null || STATUS=$?
       echo "--> Running pnpm tests..."
       pnpm test -- --run 2>&1 | tail -30 || STATUS=$?
+      echo "--> Running build check..."
+      pnpm run build --if-present || STATUS=$?
     else
       echo "==> [pre-push-qa] ERROR: 'pnpm' is required for this stack but not installed or not in PATH." >&2
       STATUS=1
@@ -114,6 +143,8 @@ case "$STACK" in
       npx --no-install tsc --noEmit --if-present 2>/dev/null || STATUS=$?
       echo "--> Running npm tests..."
       npm test -- --passWithNoTests 2>&1 | tail -30 || STATUS=$?
+      echo "--> Running build check..."
+      npm run build --if-present || STATUS=$?
     else
       echo "==> [pre-push-qa] ERROR: 'npm' is required for this stack but not installed or not in PATH." >&2
       STATUS=1
@@ -127,6 +158,10 @@ case "$STACK" in
       yarn run tsc --noEmit 2>/dev/null || STATUS=$?
       echo "--> Running yarn tests..."
       yarn test 2>&1 | tail -30 || STATUS=$?
+      if grep -q '"build":' package.json 2>/dev/null; then
+        echo "--> Running build check..."
+        yarn run build || STATUS=$?
+      fi
     else
       echo "==> [pre-push-qa] ERROR: 'yarn' is required for this stack but not installed or not in PATH." >&2
       STATUS=1
@@ -138,6 +173,10 @@ case "$STACK" in
       bun run lint || STATUS=$?
       echo "--> Running bun tests..."
       bun test 2>&1 | tail -30 || STATUS=$?
+      if grep -q '"build":' package.json 2>/dev/null; then
+        echo "--> Running build check..."
+        bun run build || STATUS=$?
+      fi
     else
       echo "==> [pre-push-qa] ERROR: 'bun' is required for this stack but not installed or not in PATH." >&2
       STATUS=1
