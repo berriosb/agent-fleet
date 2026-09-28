@@ -1,9 +1,9 @@
-# gatling — QA reusable workflow.
+# pre-push-qa — QA reusable workflow.
 # This file lives in the central repo (berriosb/pre-push-qa).
 # Consumer repos invoke it via:
 #   uses: berriosb/pre-push-qa/.github/workflows/qa.yml@v1
 
-name: gatling-qa
+name: pre-push-qa
 
 on:
   workflow_call:
@@ -59,7 +59,7 @@ permissions:
   checks: write
 
 concurrency:
-  group: gatling-${{ github.event.pull_request.number || github.ref }}
+  group: pre-push-qa-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -235,7 +235,7 @@ jobs:
         with:
           repository: berriosb/pre-push-qa
           ref: v1
-          path: .gatling-qa
+          path: .pre-push-qa
 
       - name: Skip if CodeRabbit already covered this PR
         if: inputs.skip_if_coderabbit
@@ -276,8 +276,8 @@ jobs:
         run: |
           if [ -f scripts/review-call.js ]; then
             node scripts/review-call.js
-          elif [ -f .gatling-qa/scripts/review-call.js ]; then
-            node .gatling-qa/scripts/review-call.js
+          elif [ -f .pre-push-qa/scripts/review-call.js ]; then
+            node .pre-push-qa/scripts/review-call.js
           else
             echo "No review script found — skipping."
           fi
@@ -317,7 +317,7 @@ jobs:
         with:
           repository: berriosb/pre-push-qa
           ref: v1
-          path: .gatling-qa
+          path: .pre-push-qa
 
       - name: Detect failing job + extract log
         id: capture
@@ -334,8 +334,8 @@ jobs:
           BRANCH="auto/fix-${{ github.run_id }}"
           if [ -f scripts/auto-fix-attempt.js ]; then
             node scripts/auto-fix-attempt.js "$BRANCH"
-          elif [ -f .gatling-qa/scripts/auto-fix-attempt.js ]; then
-            node .gatling-qa/scripts/auto-fix-attempt.js "$BRANCH"
+          elif [ -f .pre-push-qa/scripts/auto-fix-attempt.js ]; then
+            node .pre-push-qa/scripts/auto-fix-attempt.js "$BRANCH"
           else
             echo "No auto-fix script found — skipping."
           fi
@@ -357,7 +357,7 @@ jobs:
         shell: bash
         run: |
           {
-            echo "## 🐦‍⬛ gatling summary"
+            echo "## Pre-Push QA Summary"
             echo ""
             echo "| job | result |"
             echo "|---|---|"

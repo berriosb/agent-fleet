@@ -106,7 +106,7 @@ function loadReviewPrompt() {
   const candidatePaths = [
     path.join(__dirname, '..', 'prompts', 'review.md'),
     path.join(__dirname, 'prompts', 'review.md'),
-    '/tmp/gatling-prompts/review.md'
+    path.join(__dirname, '..', 'skills', 'pre-push-qa', 'prompts', 'review.md')
   ];
   for (const p of candidatePaths) {
     if (fs.existsSync(p)) {

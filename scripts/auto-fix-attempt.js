@@ -62,7 +62,7 @@ function loadAutoFixPrompt() {
   const candidatePaths = [
     path.join(__dirname, '..', 'prompts', 'auto-fix.md'),
     path.join(__dirname, 'prompts', 'auto-fix.md'),
-    '/tmp/gatling-prompts/auto-fix.md'
+    path.join(__dirname, '..', 'skills', 'pre-push-qa', 'prompts', 'auto-fix.md')
   ];
   for (const p of candidatePaths) {
     if (fs.existsSync(p)) {
@@ -289,19 +289,32 @@ function validateFileSyntax(filePath) {
       process.exit(0);
     }
 
-    // Commit and push side-branch
+    // Commit and push side-branch (Zero AI Branding)
     console.log(`[auto-fix] Fix validated for ${targetFile}. Creating branch ${branch}...`);
     execSync(`git checkout -b "${branch}"`, { stdio: 'inherit' });
     execSync(`git add "${targetFile}"`, { stdio: 'inherit' });
-    execSync(`git commit -m "auto-fix: ${fix.summary || 'mechanical fix'}"`, {
+
+    let authorName = process.env.GIT_AUTHOR_NAME;
+    let authorEmail = process.env.GIT_AUTHOR_EMAIL;
+    if (!authorName) {
+      try { authorName = execSync('git config user.name', { encoding: 'utf8' }).trim(); } catch (_) {}
+    }
+    if (!authorEmail) {
+      try { authorEmail = execSync('git config user.email', { encoding: 'utf8' }).trim(); } catch (_) {}
+    }
+    const envOverrides = {};
+    if (authorName) {
+      envOverrides.GIT_AUTHOR_NAME = authorName;
+      envOverrides.GIT_COMMITTER_NAME = authorName;
+    }
+    if (authorEmail) {
+      envOverrides.GIT_AUTHOR_EMAIL = authorEmail;
+      envOverrides.GIT_COMMITTER_EMAIL = authorEmail;
+    }
+
+    execSync(`git commit -m "fix: ${fix.summary || 'mechanical fix'}"`, {
       stdio: 'inherit',
-      env: {
-        ...process.env,
-        GIT_AUTHOR_NAME: 'gatling',
-        GIT_AUTHOR_EMAIL: 'gatling@users.noreply.github.com',
-        GIT_COMMITTER_NAME: 'gatling',
-        GIT_COMMITTER_EMAIL: 'gatling@users.noreply.github.com'
-      }
+      env: { ...process.env, ...envOverrides }
     });
 
     execSync(`git push -u origin "${branch}"`, { stdio: 'inherit' });
@@ -316,14 +329,14 @@ function validateFileSyntax(filePath) {
 
     if (prNumber && headRef) {
       try {
-        execSync(`gh pr create --base "${headRef}" --head "${branch}" --title "🤖 auto-fix attempt for ${prTitle}" --body "Automated surgical fix attempt. **Requires human review before merging.**\\n\\nSummary: ${fix.summary || 'mechanical fix'}" --draft ${repoArg}`, {
+        execSync(`gh pr create --base "${headRef}" --head "${branch}" --title "fix: automated surgical fix for ${prTitle}" --body "Automated surgical fix attempt. **Requires human review before merging.**\\n\\nSummary: ${fix.summary || 'mechanical fix'}" --draft ${repoArg}`, {
           stdio: 'inherit'
         });
         console.log('[auto-fix] Draft PR created successfully.');
       } catch (prErr) {
         console.warn(`[auto-fix] Could not create draft PR: ${prErr.message}. Posting comment instead.`);
         try {
-          execSync(`gh pr comment "${prNumber}" ${repoArg} --body "🤖 **gatling auto-fix branch created**: \`${branch}\`. Review before merging."`, {
+          execSync(`gh pr comment "${prNumber}" ${repoArg} --body "Auto-fix branch created: \`${branch}\`. Review before merging."`, {
             stdio: 'inherit'
           });
         } catch (_) {}

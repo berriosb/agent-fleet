@@ -62,18 +62,6 @@ This skill assumes the **executing agent** provides context. Specifically:
 Read these project files IN ORDER to pick commands (first match wins):
 
 ```bash
-# Python (uv)
-[ -f uv.lock ] || [ -f pyproject.toml ]    → STACK=python
-   LINT = 'uv run ruff check . --output-format=concise || true'
-   TYPECHECK = 'uv run mypy . --ignore-missing-imports || true'
-   TEST = 'uv run pytest -q --tb=line 2>&1 | tail -40'
-
-# Python (pip)
-[ -f requirements.txt ] || [ -f setup.py ] → STACK=pip
-   LINT = 'ruff check . --output-format=concise || true'
-   TYPECHECK = 'mypy . --ignore-missing-imports || true'
-   TEST = 'pytest -q --tb=line 2>&1 | tail -40'
-
 # pnpm
 [ -f pnpm-lock.yaml ]                        → STACK=pnpm
    INSTALL = 'pnpm install --frozen-lockfile'
@@ -82,9 +70,45 @@ Read these project files IN ORDER to pick commands (first match wins):
    TEST = 'CI=true pnpm test --if-present 2>&1 | tail -40'
    BUILD = 'pnpm run build --if-present'
 
+# yarn
+[ -f yarn.lock ]                             → STACK=yarn
+   INSTALL = 'yarn install --frozen-lockfile'
+   LINT = 'yarn run lint --if-present'
+   TYPECHECK = 'yarn run tsc --noEmit 2>/dev/null || true'
+   TEST = 'CI=true yarn test 2>&1 | tail -40'
+   BUILD = 'yarn run build --if-present'
+
+# bun
+[ -f bun.lockb ] || [ -f bun.lock ]          → STACK=bun
+   INSTALL = 'bun install --frozen-lockfile'
+   LINT = 'bun run lint --if-present'
+   TYPECHECK = 'bun run tsc --noEmit 2>/dev/null || true'
+   TEST = 'CI=true bun test 2>&1 | tail -40'
+   BUILD = 'bun run build --if-present'
+
 # npm
-[ -f package-lock.json ] || [ -f package.json ] → STACK=npm
+[ -f package-lock.json ]                     → STACK=npm
    INSTALL = 'npm ci --ignore-scripts'
+   LINT = 'npm run lint --if-present'
+   TYPECHECK = 'npx tsc --noEmit --if-present || true'
+   TEST = 'CI=true npm test --if-present 2>&1 | tail -40'
+   BUILD = 'npm run build --if-present'
+
+# Python (uv)
+[ -f uv.lock ] || [ -f pyproject.toml ]    → STACK=python
+   LINT = 'uv run ruff check . --output-format=concise || ruff check . --output-format=concise || true'
+   TYPECHECK = 'uv run mypy . --ignore-missing-imports 2>/dev/null || mypy . --ignore-missing-imports 2>/dev/null || true'
+   TEST = 'uv run pytest -q --tb=line 2>&1 | tail -40 || pytest -q --tb=line 2>&1 | tail -40'
+
+# Python (pip)
+[ -f requirements.txt ] || [ -f setup.py ] → STACK=pip
+   LINT = 'ruff check . --output-format=concise || true'
+   TYPECHECK = 'mypy . --ignore-missing-imports 2>/dev/null || true'
+   TEST = 'pytest -q --tb=line 2>&1 | tail -40'
+
+# Node fallback without lockfile
+[ -f package.json ]                          → STACK=npm
+   INSTALL = 'npm install --ignore-scripts'
    LINT = 'npm run lint --if-present'
    TYPECHECK = 'npx tsc --noEmit --if-present || true'
    TEST = 'CI=true npm test --if-present 2>&1 | tail -40'
@@ -95,7 +119,7 @@ Read these project files IN ORDER to pick commands (first match wins):
    LINT = 'terraform fmt -check -recursive || terraform validate'
 
 # Docker
-[ -f Dockerfile ] || [ -f docker-compose.yml ] → STACK=docker
+[ -f Dockerfile ] || [ -f docker-compose.yml ] || [ -f docker-compose.yaml ] → STACK=docker
    LINT = 'hadolint Dockerfile || true'
 
 # Docs-only (ONLY when repository has zero code files: no .py, .ts, .js, .go, .rs, .tf, .sh, etc.)
@@ -118,10 +142,16 @@ Run sequentially in a single subshell so you capture all output:
 STATUS=0
 case "$STACK" in
   python)
-    uv sync --frozen 2>/dev/null || uv sync || STATUS=$?
-    uv run ruff check . --output-format=concise || STATUS=$?
-    uv run mypy . --ignore-missing-imports 2>/dev/null || STATUS=$?
-    uv run pytest -q --tb=line 2>&1 | tail -40 || STATUS=$?
+    if command -v uv >/dev/null 2>&1; then
+      uv sync --frozen 2>/dev/null || uv sync || STATUS=$?
+      uv run ruff check . --output-format=concise || STATUS=$?
+      uv run mypy . --ignore-missing-imports 2>/dev/null || STATUS=$?
+      uv run pytest -q --tb=line 2>&1 | tail -40 || STATUS=$?
+    else
+      command -v ruff >/dev/null 2>&1 && ruff check . --output-format=concise || STATUS=$?
+      command -v mypy >/dev/null 2>&1 && mypy . --ignore-missing-imports 2>/dev/null || STATUS=$?
+      command -v pytest >/dev/null 2>&1 && pytest -q --tb=line 2>&1 | tail -40 || STATUS=$?
+    fi
     ;;
   pip)
     ruff check . --output-format=concise 2>/dev/null || STATUS=$?
@@ -135,8 +165,20 @@ case "$STACK" in
     CI=true pnpm test --if-present 2>&1 | tail -40 || STATUS=$?
     pnpm run build --if-present || STATUS=$?
     ;;
+  yarn)
+    yarn run lint --if-present || STATUS=$?
+    yarn run tsc --noEmit 2>/dev/null || STATUS=$?
+    CI=true yarn test 2>&1 | tail -40 || STATUS=$?
+    yarn run build --if-present || STATUS=$?
+    ;;
+  bun)
+    bun run lint --if-present || STATUS=$?
+    bun run tsc --noEmit 2>/dev/null || STATUS=$?
+    CI=true bun test 2>&1 | tail -40 || STATUS=$?
+    bun run build --if-present || STATUS=$?
+    ;;
   npm)
-    npm ci --ignore-scripts 2>/dev/null || STATUS=$?
+    npm ci --ignore-scripts 2>/dev/null || npm install --ignore-scripts 2>/dev/null || STATUS=$?
     npm run lint --if-present || STATUS=$?
     npx tsc --noEmit --if-present 2>/dev/null || STATUS=$?
     CI=true npm test --if-present 2>&1 | tail -40 || STATUS=$?
@@ -163,47 +205,80 @@ follow that constraint.
 
 ## Step 3 — Optional: AI review (LLM-agnostic)
 
-This step is **only run if the user hasn't disabled it**. The agent running this skill
-should:
+This step is **only run if the user hasn't disabled it**. The agent running this skill performs the review directly using its native reasoning (no external API keys or external script paths required):
 
-1. Get the diff: `git diff HEAD` (or `git diff --cached` if everything is staged).
-2. Call **whatever LLM the agent has access to** (Claude, M3, Gemini, GPT-4, etc.).
-3. Use `prompts/review.md` as the system prompt.
-4. Post findings as comments. Do NOT modify code from the review step (auto-fix is a
-   separate step, gated on user approval).
+1. Get the diff: `git diff HEAD` (or `git diff --cached` if changes are staged).
+2. Adhere to this **Review System Prompt**:
+   > **Role:** You are a senior code reviewer reviewing a pull request diff.
+   > **Conventions:**
+   > - Read `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` if present in the repo (they encode house style).
+   > - Prefer findings that map to specific files and lines.
+   > - Skip findings about pure formatting, comments, or import order unless they violate stated style.
+   > - For ambiguous correctness questions, ask a question as a comment instead of asserting.
+   >
+   > **Output format — respond with ONE Markdown block:**
+   > ```markdown
+   > ## Code review
+   > For each finding, output:
+   > > **<severity>** — `<file>:<line>` — <one-sentence issue> — suggested fix: <one line>
+   >
+   > Severities: critical (correctness/security), high (will break), med (smell, future bug), low (nit).
+   >
+   > End with one of:
+   > - LGTM (no findings)
+   > - Approve with suggestions (≤ 3 findings, all low/med)
+   > - Request changes (any critical or high)
+   > ```
+   > *Do NOT execute commands. Do NOT modify files. Output only the review.*
 
-If the running agent lacks a usable LLM call → skip Step 3 entirely. The static + tests
-in Step 2 are the load-bearing part.
+3. Post findings as comments in conversation. Do NOT modify code from the review step (auto-fix is a separate step, gated on user approval).
+
+If the running environment lacks an interactive LLM agent → skip Step 3 entirely. The static + tests in Step 2 are the load-bearing part.
 
 ## Step 4 — Optional: Auto-fix attempts (HITL by default)
 
 **Never auto-fix without explicit user permission.** When lint or tests fail:
 
 1. Extract the FIRST error from the failing log (≤ 100 lines).
-2. Try ONE proposed change with `prompts/auto-fix.md` as the prompt.
-3. If the proposal is mechanical and within `src/`, `tests/`, `app/`, `packages/`, `lib/`,
-   commit ONLY that file.
+2. Adhere to this **Surgical Fix Specification**:
+   > **Hard rules (NO exceptions):**
+   > 1. Modify AT MOST ONE file under allowed paths: `src/`, `tests/`, `app/`, `packages/`, `lib/`.
+   > 2. The fix must be a mechanical, deterministic change (typo, missing import, wrong attribute name, off-by-one in a fixture, syntax error). If the failure requires redesign → **ABORT** and report failure to user.
+   > 3. Do NOT touch configs, lockfiles, or CI files.
+   > 4. Do NOT add new external dependencies.
+   > 5. Do NOT refactor or rename variables unnecessarily.
+   > 6. Replacement MUST be an exact contiguous block match.
+   > 7. Verify syntax/tests before committing. Commit ONLY that file under author's own identity (Zero AI Branding).
+3. If the proposal is mechanical and safe, propose it to the user. Upon confirmation, apply and commit ONLY that file.
 4. Otherwise, surface the failure to the user and stop.
 
 If the user said "just push it / don't stop on CI failures", skip Step 4 entirely.
 
 ## Step 5 — Push guard & Verification Marker
 
+> [!IMPORTANT]
+> **CRITICAL TIMING NOTE FOR GIT HOOKS:**
+> If consumer repos use the pre-push hook, it verifies that `.git/pre-push-qa-ok` matches the **exact HEAD commit hash** being pushed.
+> - If QA is run before creating the commit (e.g. while unstaged or uncommitted), you MUST generate/update the marker **AFTER `git commit` and BEFORE `git push`**.
+> - Otherwise, the hook will detect a stale commit hash and block the push (`STALE MARKER ERROR`).
+
 Before pushing, the agent must verify and execute:
 
 1. **Confirm checks passed:**
-   - [ ] `git status --porcelain` is clean OR the only changes are the auto-fix from Step 4
+   - [ ] No sensitive `.env` files tracked in git:
+     `git ls-files | grep -E '(^|/)\.env(\.[^/]+)?$' | grep -vE '\.env\.(example|sample|template)$'`
+   - [ ] No private keys tracked in git:
+     `git ls-files | grep -E '\.(pem|key|pkcs12|pfx|id_rsa|id_ed25519)$'`
+   - [ ] `git status --porcelain` is clean OR the only changes are the approved auto-fix from Step 4
    - [ ] All lint commands in Step 2 exited 0
    - [ ] All typecheck commands in Step 2 exited 0
    - [ ] All test commands in Step 2 exited 0
    - [ ] Build check passed (`build --if-present` exited 0)
-   - [ ] No `.env` or private keys tracked in git (`git ls-files | grep '\.env'`)
    - [ ] CI Secret Independence: Tests do NOT depend on unmocked local-only environment variables missing from CI
    - [ ] User has approved the commit message (or agreed to auto-generated `[skip ci]` prefix)
 
-2. **Generate the Git Hook Verification Marker:**
-   If the local environment uses the pre-push hook (`examples/pre-push.sh`), it requires a valid marker matching the current HEAD commit.
-   Create the marker before running `git push`:
+2. **Generate the Git Hook Verification Marker (post-commit):**
+   If the local environment uses the pre-push hook (`examples/pre-push.sh`), create the marker immediately before running `git push`:
    ```bash
    GIT_DIR="$(git rev-parse --git-dir 2>/dev/null || echo .git)"
    CURRENT_HEAD="$(git rev-parse HEAD 2>/dev/null || echo "ok")"
@@ -278,7 +353,7 @@ A "FAIL" verdict blocks push unless the user has explicitly requested force-push
 | **OpenCode** | Symlink into `~/.config/opencode/skills/pre-push-qa/`. OpenCode loads skills from that path. |
 | **Codex CLI** | Drop into `~/.codex/skills/pre-push-qa/`. Codex picks up skills per `~/.codex/skills/`. |
 | **Gemini CLI** | Symlink into `~/.gemini/skills/pre-push-qa/`. Gemini CLI auto-discovers. |
-| **Antigravity CLI (`agy`)** | `agy` is a Google CLI, **not** based on VS Code (the `extensions/` dir holds LSP language servers only). Skills live at `~/.agents/skills/<name>/SKILL.md` (same path as gemini-cli). To install: `mkdir -p ~/.agents/skills/pre-push-qa && ln -sf $HOME/.hermes/profiles/codehak/skills/software-development/pre-push-qa/SKILL.md ~/.agents/skills/pre-push-qa/SKILL.md`. Confirm with `agy plugin list` and a quick prompt mentioning "commit". |
+| **Antigravity CLI (`agy`)** | Google AGY CLI. Discovers workspace skills from `.agents/skills/<name>/SKILL.md`. To enable global discovery from `~/.agents/skills/`, ensure `~/.gemini/config/skills.json` declares `{"entries": [{"path": "~/.agents/skills"}]}`. |
 | **Pi / gentle-ai** | ⚠️ **DO NOT install in Pi.** Pi has its own 4R/JD/lens review pipeline which is strictly better than this skill's Step 3. This skill is **not** the right tool for Pi. |
 | **Codex/Claude/OpenCode agents invoked by `delegate_task` from Hermes** | The parent Hermes should run pre-push-qa locally before the delegated work returns; failing that, run it on the subagent's output before committing. |
 
@@ -365,10 +440,7 @@ Before telling the user "QA passed", verify:
 
 ## Files in this skill
 
-- `SKILL.md` — this file (the agent-agnostic procedure)
-- (no scripts — agents run the commands inline; no API keys required)
-
-## Related tools in this repository
-
-- `scripts/run.sh` — standalone bash script to run the same stack detection and tests locally.
-- `examples/pre-push.sh` — optional git pre-push hook to enforce checks before `git push`.
+- `SKILL.md` — this file (the self-contained agent-agnostic procedure with embedded review & auto-fix guidelines)
+- `scripts/run.sh` — standalone bash runner for local terminal checks and security scans
+- `examples/pre-push.sh` — optional git pre-push hook for hard enforcement
+- `prompts/` — reference copies of review and auto-fix prompts
