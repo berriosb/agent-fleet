@@ -282,8 +282,17 @@ review with more depth than a one-shot generic AI review would. Inside Pi, use
 
 ## Installation (one-time, all agents)
 
+### Option 1: Via `skills.sh` (Recommended)
+Installs automatically across all supported agents (Claude Code, Antigravity `agy`, Cursor, Codex, Gemini CLI, OpenCode, Copilot, Cline, etc.):
 ```bash
-SRC="$HOME/.hermes/profiles/codehak/skills/software-development/pre-push-qa"
+npx skills add berriosb/pre-push-qa -g
+```
+
+### Option 2: Manual symlink / clone
+```bash
+SRC="$HOME/Proyectos/pre-push-qa/skills/pre-push-qa"
+# Or if using Hermes profile:
+# SRC="$HOME/.hermes/profiles/codehak/skills/software-development/pre-push-qa"
 
 # Mirror the skill into each agent's skill path.
 # Pi / gentle-ai is INTENTIONALLY omitted — Pi has its own 4R/JD/lens review
@@ -297,10 +306,6 @@ for dest in \
     mkdir -p "$dest"
     ln -sf "$SRC/SKILL.md" "$dest/SKILL.md"
 done
-
-# `~/.agents/skills/` is shared by antigravity-cli (`agy`) AND gemini-cli.
-# Both discover SKILL.md files there with the same frontmatter.
-# Already created by the loop above, so no extra step needed.
 
 echo "Linked. Each agent will now load pre-push-qa when triggered by commit/push intent."
 ```

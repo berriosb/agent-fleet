@@ -19,13 +19,29 @@ sin necesidad de configurar secrets, llaves externas ni workflows invasivos en t
 | `prompts/review.md` | System prompt para review de código local por el propio agente (opcional, agnóstico al LLM). |
 | `prompts/auto-fix.md` | Prompt de auto-fix mecánico para el agente bajo supervisión humana (HITL). |
 
-## Instalar la skill en cada agente (5 symlinks, 30 segundos)
+## Instalación
+
+### Método 1: Vía `skills.sh` (Recomendado — 1 comando para todos tus agentes)
+
+Compatible nativamente con el ecosistema de [skills.sh](https://skills.sh). Instala la skill automáticamente para todos los agentes detectados en tu máquina (**Claude Code, Antigravity `agy`, Cursor, Codex, Gemini CLI, OpenCode, GitHub Copilot, Cline, Zed, Warp**, etc.):
 
 ```bash
-# Path a este repo clonado
+# Instalación global (recomendada para todos tus proyectos y agentes):
+npx skills add berriosb/pre-push-qa -g
+
+# O para un único proyecto local:
+npx skills add berriosb/pre-push-qa
+```
+
+---
+
+### Método 2: Instalación manual (Vía Git Clone / Symlinks)
+
+Si prefieres clonar el repositorio y gestionar los enlaces simbólicos manualmente:
+
+```bash
+git clone https://github.com/berriosb/pre-push-qa.git ~/Proyectos/pre-push-qa
 SRC="$HOME/Proyectos/pre-push-qa/skills/pre-push-qa"
-# O si usas perfil Hermes:
-# SRC="$HOME/.hermes/profiles/codehak/skills/software-development/pre-push-qa"
 
 for dest in \
   "$HOME/.claude/skills/pre-push-qa" \
@@ -40,6 +56,8 @@ done
 
 Verificar:
 ```bash
+npx skills list -g
+# O inspeccionar directamente:
 ls -la ~/.claude/skills/pre-push-qa/SKILL.md
 ls -la ~/.agents/skills/pre-push-qa/SKILL.md
 agy -p "list the available skills" 2>&1 | head -10
