@@ -43,27 +43,36 @@ Si prefieres clonar el repositorio y gestionar los enlaces simbólicos manualmen
 git clone https://github.com/berriosb/pre-push-qa.git ~/Proyectos/pre-push-qa
 SRC="$HOME/Proyectos/pre-push-qa/skills/pre-push-qa"
 
+# Enlaza el DIRECTORIO completo, no solo SKILL.md — sin scripts/, examples/ y
+# prompts/ el agente no puede correr el runner ni el hook que documenta Step 5.
 for dest in \
+  "$HOME/.agents/skills/pre-push-qa" \
   "$HOME/.claude/skills/pre-push-qa" \
-  "$HOME/.config/opencode/skills/pre-push-qa" \
   "$HOME/.codex/skills/pre-push-qa" \
-  "$HOME/.gemini/skills/pre-push-qa" \
-  "$HOME/.agents/skills/pre-push-qa"; do
-    mkdir -p "$dest"
-    ln -sf "$SRC/SKILL.md" "$dest/SKILL.md"
+  "$HOME/.gemini/skills/pre-push-qa"; do
+    rm -rf "$dest"
+    mkdir -p "$(dirname "$dest")"
+    ln -s "$SRC" "$dest"
 done
 
-# Opcional: Ejecución global en terminal vía ~/.local/bin
+# Ejecución global en terminal vía ~/.local/bin
 mkdir -p "$HOME/.local/bin"
 ln -sf "$HOME/Proyectos/pre-push-qa/scripts/run.sh" "$HOME/.local/bin/pre-push-qa"
+
+# Hook global (todos los repos lo heredan vía core.hooksPath)
+mkdir -p "$HOME/.githooks"
+cp "$SRC/examples/pre-push.sh" "$HOME/.githooks/pre-push"
+chmod +x "$HOME/.githooks/pre-push"
+git config --global core.hooksPath "$HOME/.githooks"
 ```
 
 Verificar:
 ```bash
 npx skills list -g
-# O inspeccionar directamente:
-ls -la ~/.claude/skills/pre-push-qa/SKILL.md
-ls -la ~/.agents/skills/pre-push-qa/SKILL.md
+# O inspeccionar directamente (el directorio completo debe resolver):
+ls ~/.agents/skills/pre-push-qa/            # SKILL.md examples/ prompts/ scripts/
+ls ~/.agents/skills/pre-push-qa/scripts/run.sh
+test -x "$(git rev-parse --git-path hooks)/pre-push" && echo "hook activo"
 agy -p "list the available skills" 2>&1 | head -10
 ```
 

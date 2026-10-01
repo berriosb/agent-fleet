@@ -360,7 +360,7 @@ A "FAIL" verdict blocks push unless the user has explicitly requested force-push
 |---|---|
 | **Hermes Agent** | Load with `skill_view(name='pre-push-qa')`. Run steps verbatim. |
 | **Claude Code** | Add the SKILL.md to `~/.claude/skills/pre-push-qa/SKILL.md` — Claude auto-loads from `~/.claude/skills/`. |
-| **OpenCode** | Symlink into `~/.config/opencode/skills/pre-push-qa/`. OpenCode loads skills from that path. |
+| **OpenCode** | Symlink the directory into `~/.agents/skills/pre-push-qa/`. OpenCode scans `~/.agents/skills/` and `~/.claude/skills/` as external skill roots; `~/.config/opencode/skill(s)/` is the newer local path and is NOT required for global installs. |
 | **Codex CLI** | Drop into `~/.codex/skills/pre-push-qa/`. Codex picks up skills per `~/.codex/skills/`. |
 | **Gemini CLI** | Symlink into `~/.gemini/skills/pre-push-qa/`. Gemini CLI auto-discovers. |
 | **Antigravity CLI (`agy`)** | Google AGY CLI. Discovers workspace skills from `.agents/skills/<name>/SKILL.md`. To enable global discovery from `~/.agents/skills/`, ensure `~/.gemini/config/skills.json` declares `{"entries": [{"path": "~/.agents/skills"}]}`. |
@@ -383,33 +383,53 @@ npx skills add berriosb/pre-push-qa -g
 ### Option 2: Manual symlink / clone
 ```bash
 SRC="$HOME/Proyectos/pre-push-qa/skills/pre-push-qa"
-# Or if using Hermes profile:
+# Or if using Hermes profile (SKILL.md + scripts/ + examples/ + prompts/ all resolve):
 # SRC="$HOME/.hermes/profiles/codehak/skills/software-development/pre-push-qa"
 
-# Mirror the skill into each agent's skill path.
+# Link the WHOLE DIRECTORY, not just SKILL.md. Agents that receive only SKILL.md
+# cannot reach scripts/run.sh, examples/pre-push.sh or prompts/ — Step 5 references
+# examples/pre-push.sh, and the runner is the only way to produce the marker.
 # Pi / gentle-ai is INTENTIONALLY omitted — Pi has its own 4R/JD/lens review
 # pipeline which is strictly better than what this skill offers in Step 3.
+#
+# ~/.agents/skills is the canonical location: opencode scans it as an "external
+# skill" root and picks up ~/.claude/skills at the same time, so a single link
+# under ~/.agents/skills serves opencode, agy and gemini without duplicates.
 for dest in \
+  "$HOME/.agents/skills/pre-push-qa" \
   "$HOME/.claude/skills/pre-push-qa" \
-  "$HOME/.config/opencode/skills/pre-push-qa" \
   "$HOME/.codex/skills/pre-push-qa" \
-  "$HOME/.gemini/skills/pre-push-qa" \
-  "$HOME/.agents/skills/pre-push-qa"; do
-    mkdir -p "$dest"
-    ln -sf "$SRC/SKILL.md" "$dest/SKILL.md"
+  "$HOME/.gemini/skills/pre-push-qa"; do
+  rm -rf "$dest"
+  mkdir -p "$(dirname "$dest")"
+  ln -s "$SRC" "$dest"
 done
 
-# Optional: Link pre-push-qa to PATH for global terminal execution
+# Hermes profile: point at the same source so SKILL.md never drifts again
+rm -rf "$HOME/.hermes/profiles/codehak/skills/software-development/pre-push-qa"
+ln -s "$SRC" "$HOME/.hermes/profiles/codehak/skills/software-development/pre-push-qa"
+
+# Link the runner to PATH for global terminal execution
 mkdir -p "$HOME/.local/bin"
-ln -sf "$SRC/../../scripts/run.sh" "$HOME/.local/bin/pre-push-qa"
+ln -sf "$HOME/Proyectos/pre-push-qa/scripts/run.sh" "$HOME/.local/bin/pre-push-qa"
+
+# Install the pre-push hook ONCE globally (all repos inherit via core.hooksPath)
+mkdir -p "$HOME/.githooks"
+cp "$SRC/examples/pre-push.sh" "$HOME/.githooks/pre-push"
+chmod +x "$HOME/.githooks/pre-push"
+git config --global core.hooksPath "$HOME/.githooks"
 
 echo "Linked. Each agent will now load pre-push-qa when triggered by commit/push intent."
 ```
 
 **Verify after install:**
 ```bash
-ls -la ~/.claude/skills/pre-push-qa/SKILL.md       # symlink OK
-ls -la ~/.agents/skills/pre-push-qa/SKILL.md       # symlink OK (agy AND gemini share this path)
+# Whole directory resolves (not just SKILL.md)
+ls ~/.agents/skills/pre-push-qa/                       # SKILL.md examples/ prompts/ scripts/
+ls ~/.agents/skills/pre-push-qa/scripts/run.sh         # exists — the runner is reachable
+# Enforcement is live
+git config --global --get core.hooksPath               # ~/.githooks
+test -x "$(git rev-parse --git-path hooks)/pre-push" && echo "hook active"
 agy -p "test that you can see the pre-push-qa skill by listing skills" 2>&1 | head -20  # agy confirms load
 # Pi: intentionally NOT installed. Use pi's native 4r-review / JD agents instead.
 ```
@@ -451,6 +471,33 @@ Before telling the user "QA passed", verify:
    are noise, not real changes).
 4. If you ran Step 4 (auto-fix), `git log -1` shows the new commit and `git diff HEAD~1`
    touches exactly one file under the allowed scope.
+
+## Enforcement: one global hook, not one per repo
+
+`git config --global core.hooksPath ~/.githooks` makes a hook copied into a repo's
+`.git/hooks/` **inert** — git never reads that directory when `core.hooksPath` is set. So
+install once globally and let every repo inherit it, instead of copying into each repo
+and silently never running:
+
+```bash
+mkdir -p ~/.githooks
+cp "$SRC/examples/pre-push.sh" ~/.githooks/pre-push
+chmod +x ~/.githooks/pre-push
+git config --global core.hooksPath ~/.githooks
+```
+
+If your agent refuses to write global instruction files (`~/.claude/CLAUDE.md`,
+`~/.codex/AGENTS.md` are read-only in some setups), the hook is your only enforcement —
+which is exactly why it must be installed and verified.
+
+## Verify with a real round-trip, not a file listing
+
+```bash
+rm -f "$(git rev-parse --git-dir)/pre-push-qa-ok"
+~/.local/bin/pre-push-qa; echo "runner exit=$?"                                     # 0 + marker
+bash ~/.githooks/pre-push origin HEAD:refs/heads/selftest < /dev/null; echo "hook=$?"  # 0
+rm -f "$(git rev-parse --git-dir)/pre-push-qa-ok"                                   # always clean up
+```
 
 ## Files in this skill
 

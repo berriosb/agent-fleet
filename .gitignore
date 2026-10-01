@@ -19,3 +19,5 @@ Thumbs.db
 scratch/
 *.bak
 .pre-push-qa-ok
+# Local Pi runtime state
+.atl/
