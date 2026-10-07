@@ -61,3 +61,28 @@ exigen conservar el aviso de licencia.
 | `gentle-ai` review tools (`gentle_review_*`) | No son `SKILL.md`: viven dentro del binario Go. No son forkables. Además `gentle-ai install --agent hermes` sobrescribe `AGENTS.md` y `CLAUDE.md` de los perfiles. |
 | `gentle-ai`: `comment-writer` | Reglas de GitHub y voseo que no son las de este fleet. |
 | `gentle-ai`: `chained-pr`, `rdd-*`, `branch-pr` | Dependen de issue tracker y de la infraestructura RDD interna (`internal/assets/`), no accesible. |
+
+## Análisis de portabilidad de `gentle-ai`
+
+Verificado leyendo los 3 repos (`gentle-ai`, `gentle-pi`, `Gentleman-Skills`).
+
+**Portable — `SKILL.md` autocontenido:** `work-unit-commits`, `cognitive-doc-design`. Cero
+dependencias, sin pointers. `issue-root-resolution` y `systemic-issue-triage` son portables
+en método pero referencian `internal/assets/` (no público).
+
+**No portable — el review path "4R / JD / lens":** no es un `SKILL.md`. Es tooling
+`gentle_review_*` compilado dentro del binario Go de `gentle-ai`, así que no se puede leer,
+forkear ni ejecutar sin Go. No decir que "esa disciplina está en Pi y no disponible en otros
+agentes": decir que el binario la implementa y que estas skills son la forma portable más
+cercana.
+
+**Las skills declaran Apache-2.0 aunque el repo sea MIT.** Por eso este repo lleva `NOTICE`
+y `LICENSES/`.
+
+**`Gentleman-Skills` no sirve para esto:** las 24 entradas son guías de framework/SDK
+(electron, java-21, spring-boot-3, zod-4, tailwind-4), no estructura de trabajo. No leer el
+nombre de la organización como evidencia de que todo su repo vale la pena minar.
+
+**Ojo con el instalador:** `gentle-ai install --agent hermes` sobrescribe `AGENTS.md`,
+`CLAUDE.md` y mergea MCP configs de los perfiles. Con configuración propia, eso es
+destructivo. Siempre `--dry-run` primero, y nunca apuntarlo a un perfil con reglas propias.
