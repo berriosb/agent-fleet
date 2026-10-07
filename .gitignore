@@ -21,3 +21,7 @@ scratch/
 .pre-push-qa-ok
 # Local Pi runtime state
 .atl/
+
+# Python bytecode (sync script)
+__pycache__/
+*.pyc

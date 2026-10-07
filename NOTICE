@@ -1,0 +1,27 @@
+agent-fleet
+Copyright 2026 Bastián Berrios
+
+This product includes software developed by third parties.
+
+--------------------------------------------------------------------------------
+verification-before-completion
+Copyright (c) 2025 Jesse Vincent (obra/superpowers)
+Licensed under the MIT License. See LICENSES/MIT-obra-superpowers.txt
+Obtained from: https://github.com/obra/superpowers (skills/verification-before-completion)
+
+domain-modeling, fleet-interview
+Copyright (c) 2026 Matt Pocock (mattpocock/skills)
+Licensed under the MIT License. See LICENSES/MIT-mattpocock.txt
+Obtained from: https://github.com/mattpocock/skills
+  - skills/engineering/domain-modeling
+  - skills/productivity/grilling  (renamed to fleet-interview)
+
+work-unit-commits, cognitive-doc-design
+Copyright 2025 Gentleman Programming
+Licensed under the Apache License, Version 2.0. See LICENSES/Apache-2.0-gentleman-programming.txt
+Obtained from: https://github.com/Gentleman-Programming/gentle-ai
+  - skills/work-unit-commits
+  - skills/cognitive-doc-design
+
+This product includes software developed at berriosb/pre-push-qa, also MIT licensed.
+--------------------------------------------------------------------------------
