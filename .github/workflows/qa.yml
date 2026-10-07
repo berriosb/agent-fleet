@@ -1,7 +1,7 @@
 # pre-push-qa — QA reusable workflow.
-# This file lives in the central repo (berriosb/pre-push-qa).
+# This file lives in the central repo (berriosb/agent-fleet).
 # Consumer repos invoke it via:
-#   uses: berriosb/pre-push-qa/.github/workflows/qa.yml@v1
+#   uses: berriosb/agent-fleet/.github/workflows/qa.yml@v1
 
 name: pre-push-qa
 
@@ -233,9 +233,10 @@ jobs:
       - name: Checkout QA scripts
         uses: actions/checkout@v5
         with:
-          repository: berriosb/pre-push-qa
+          repository: berriosb/agent-fleet
           ref: v1
           path: .pre-push-qa
+          sparse-checkout: skills/pre-push-qa
 
       - name: Skip if CodeRabbit already covered this PR
         if: inputs.skip_if_coderabbit
@@ -276,8 +277,8 @@ jobs:
         run: |
           if [ -f scripts/review-call.js ]; then
             node scripts/review-call.js
-          elif [ -f .pre-push-qa/scripts/review-call.js ]; then
-            node .pre-push-qa/scripts/review-call.js
+          elif [ -f .pre-push-qa/skills/pre-push-qa/scripts/review-call.js ]; then
+            node .pre-push-qa/skills/pre-push-qa/scripts/review-call.js
           else
             echo "No review script found — skipping."
           fi
@@ -315,9 +316,10 @@ jobs:
       - name: Checkout QA scripts
         uses: actions/checkout@v5
         with:
-          repository: berriosb/pre-push-qa
+          repository: berriosb/agent-fleet
           ref: v1
           path: .pre-push-qa
+          sparse-checkout: skills/pre-push-qa
 
       - name: Detect failing job + extract log
         id: capture
@@ -334,8 +336,8 @@ jobs:
           BRANCH="auto/fix-${{ github.run_id }}"
           if [ -f scripts/auto-fix-attempt.js ]; then
             node scripts/auto-fix-attempt.js "$BRANCH"
-          elif [ -f .pre-push-qa/scripts/auto-fix-attempt.js ]; then
-            node .pre-push-qa/scripts/auto-fix-attempt.js "$BRANCH"
+          elif [ -f .pre-push-qa/skills/pre-push-qa/scripts/auto-fix-attempt.js ]; then
+            node .pre-push-qa/skills/pre-push-qa/scripts/auto-fix-attempt.js "$BRANCH"
           else
             echo "No auto-fix script found — skipping."
           fi

@@ -33,7 +33,7 @@ instead.
 `pre-push-qa` can also be run globally from any terminal when symlinked to `~/.local/bin/pre-push-qa`:
 ```bash
 mkdir -p ~/.local/bin
-ln -sf /home/bastianberrios/Proyectos/pre-push-qa/scripts/run.sh ~/.local/bin/pre-push-qa
+ln -sf /home/bastianberrios/Proyectos/agent-fleet/skills/pre-push-qa/scripts/run.sh ~/.local/bin/pre-push-qa
 ```
 Running `pre-push-qa` in any terminal runs stack detection, linters, tests, security checks, and creates the verification marker.
 
@@ -377,12 +377,12 @@ review with more depth than a one-shot generic AI review would. Inside Pi, use
 ### Option 1: Via `skills.sh` (Recommended)
 Installs automatically across all supported agents (Claude Code, Antigravity `agy`, Cursor, Codex, Gemini CLI, OpenCode, Copilot, Cline, etc.):
 ```bash
-npx skills add berriosb/pre-push-qa -g
+npx skills add berriosb/agent-fleet -g
 ```
 
 ### Option 2: Manual symlink / clone
 ```bash
-SRC="$HOME/Proyectos/pre-push-qa/skills/pre-push-qa"
+SRC="$HOME/Proyectos/agent-fleet/skills/pre-push-qa"
 # Or if using Hermes profile (SKILL.md + scripts/ + examples/ + prompts/ all resolve):
 # SRC="$HOME/.hermes/profiles/codehak/skills/software-development/pre-push-qa"
 
@@ -411,7 +411,7 @@ ln -s "$SRC" "$HOME/.hermes/profiles/codehak/skills/software-development/pre-pus
 
 # Link the runner to PATH for global terminal execution
 mkdir -p "$HOME/.local/bin"
-ln -sf "$HOME/Proyectos/pre-push-qa/scripts/run.sh" "$HOME/.local/bin/pre-push-qa"
+ln -sf "$HOME/Proyectos/agent-fleet/skills/pre-push-qa/scripts/run.sh" "$HOME/.local/bin/pre-push-qa"
 
 # Install the pre-push hook ONCE globally (all repos inherit via core.hooksPath)
 mkdir -p "$HOME/.githooks"

@@ -13,7 +13,7 @@ licencia de su origen. Los avisos exigidos por Apache-2.0 están en `NOTICE`.
 
 | Skill | Origen | Licencia | Cambios |
 |---|---|---|---|
-| `pre-push-qa` | [`berriosb/pre-push-qa`](https://github.com/berriosb/pre-push-qa) | MIT | developing |
+| `pre-push-qa` | Propio (historial migrado desde `berriosb/pre-push-qa`) | MIT | developing |
 | `verification-before-completion` | [`obra/superpowers`](https://github.com/obra/superpowers) `skills/verification-before-completion` | MIT | Copy literal. Sin cambios. |
 | `domain-modeling` | [`mattpocock/skills`](https://github.com/mattpocock/skills) `skills/engineering/domain-modeling` | MIT | Copy literal. Sin cambios. |
 | `fleet-interview` | [`mattpocock/skills`](https://github.com/mattpocock/skills) `skills/productivity/grilling` | MIT | Copy literal. Renombrada de `grilling` para no colisionar con el original upstream. Ver nota abajo. |
