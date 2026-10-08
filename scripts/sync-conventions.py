@@ -26,6 +26,7 @@ Depende de: python3 stdlib. Sin dependencias externas.
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import sys
 import urllib.error
@@ -62,16 +63,21 @@ lenguaje ni del proyecto.
 """
 
 
-def read_vault() -> str:
-    """Devuelve el markdown del vault: archivo local si existe, si no la URL."""
+def read_vault() -> tuple[str | None, str | None]:
+    """Devuelve (markdown, error). Intenta archivo local, luego la URL con token opcional."""
     for path in VAULT_PATHS:
         if path.is_file():
-            return path.read_text(encoding="utf-8")
+            return path.read_text(encoding="utf-8"), None
     try:
-        with urllib.request.urlopen(VAULT_URL, timeout=20) as response:
-            return response.read().decode("utf-8")
+        headers = {}
+        token = os.environ.get("VAULT_TOKEN") or os.environ.get("GH_TOKEN")
+        if token:
+            headers["Authorization"] = f"token {token}"
+        req = urllib.request.Request(VAULT_URL, headers=headers)
+        with urllib.request.urlopen(req, timeout=15) as response:
+            return response.read().decode("utf-8"), None
     except (urllib.error.URLError, TimeoutError) as exc:
-        sys.exit(f"[sync] no se pudo leer el vault: {exc}")
+        return None, str(exc)
 
 
 def extract_sections(markdown: str) -> list[tuple[str, list[str]]]:
@@ -146,7 +152,15 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    markdown = read_vault()
+    markdown, err = read_vault()
+    if markdown is None:
+        if args.check and TARGET.is_file():
+            print(
+                f"[sync] AVISO: vault no accesible ({err}). Se omite comparación remota y se preserva {TARGET.relative_to(REPO)}."
+            )
+            return 0
+        sys.exit(f"[sync] no se pudo leer el vault: {err}")
+
     sections = extract_sections(markdown)
     if not sections:
         sys.exit("[sync] no se encontraron secciones `## ` en el vault")
