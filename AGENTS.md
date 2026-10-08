@@ -13,7 +13,9 @@ acuerde"** de buscarla.
 | `fleet-interview` | Antes de implementar algo no trivial o con decisiones abiertas. |
 | `work-unit-commits` | Antes de cada commit. |
 | `pre-push-qa` | Antes de cada `git push` o `gh pr create`. |
+| `systematic-debugging` | Ante cualquier bug, fallo de test o error inesperado (investigar causa raíz antes de parchar). |
 | `verification-before-completion` | Antes de declarar algo terminado. |
+| `session-handoff` | Al cerrar sesión, antes de compactar contexto o al traspasar trabajo a otro agente. |
 | `domain-modeling` | Al cambiar vocabulario del dominio o escribir un ADR. |
 | `cognitive-doc-design` | Al escribir docs, README, PRs o architecture notes. |
 
@@ -39,11 +41,8 @@ npx skills add berriosb/agent-fleet -g
 ## Verificación
 
 ```bash
-# Skills bien formadas y referenciadas
-python3 scripts/sync-conventions.py --check
-
-# Runner de QA sobre este repo (docs-only: se salta lint de código)
-./skills/pre-push-qa/scripts/run.sh
+# Verificación completa del repo (sync con vault, frontmatter, CJK, linters)
+./scripts/verify.sh
 ```
 
 ## Licencia

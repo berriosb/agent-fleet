@@ -22,7 +22,9 @@ mcode, y cualquier otro cliente del [estándar Agent Skills](https://agentskills
 | `skills/pre-push-qa/` | Compuerta de calidad antes del push. Detecta el stack y corre lint + tests. |
 | `skills/fleet-interview/` | Interroga el árbol de decisiones antes de implementar. |
 | `skills/work-unit-commits/` | Un commit = un comportamiento entregable. Tests y docs con su código. |
+| `skills/systematic-debugging/` | Causa raíz antes de parchar. Reproducción Red-Green ante cualquier bug o fallo de tests. |
 | `skills/verification-before-completion/` | Evidencia antes de afirmaciones. |
+| `skills/session-handoff/` | Cierre estructurado y traspaso de contexto en disco antes de compactar o rotar agentes. |
 | `skills/domain-modeling/` | Glosario y ADRs: el vocabulario compartido del proyecto. |
 | `skills/cognitive-doc-design/` | Docs que un revisor puede verificar sin reconstruir la historia. |
 | `scripts/sync-conventions.py` | Proyecta `conventions.md` del vault a `references/`. |
@@ -31,13 +33,15 @@ mcode, y cualquier otro cliente del [estándar Agent Skills](https://agentskills
 ## El flujo que encadenan
 
 ```
-fleet-interview   ← ¿qué querés realmente? decisiones resueltas antes de código
+fleet-interview   ← ¿qué quieres realmente? decisiones resueltas antes de código
       ↓
 work-unit-commits ← ¿qué va en cada commit? un comportamiento por commit
       ↓
 pre-push-qa       ← ¿está sano? lint + types + tests, local, sin secrets
-      ↓
+      ↓ (si falla: systematic-debugging ← causa raíz antes de parchar)
 verification-before-completion  ← ¿terminó? evidencia fresca, no afirmaciones
+      ↓
+session-handoff   ← ¿cierras sesión o traspasas? estado persistido en disco
       ↓
 cognitive-doc-design           ← ¿se entiende? docs que un revisor puede chequear
 ```
@@ -129,9 +133,11 @@ Contenido mínimo:
 
 1. `fleet-conventions` — reglas universales. Leer antes de empezar.
 2. Antes de implementar algo no trivial: `fleet-interview`.
-3. Antes de cada commit: `work-unit-commits`.
-4. Antes de cada push: `pre-push-qa`.
-5. Antes de declarar algo terminado: `verification-before-completion`.
+3. Ante cualquier bug o fallo de tests: `systematic-debugging`.
+4. Antes de cada commit: `work-unit-commits`.
+5. Antes de cada push: `pre-push-qa`.
+6. Antes de declarar algo terminado: `verification-before-completion`.
+7. Al cerrar sesión o compactar contexto: `session-handoff`.
 ```
 
 ## Cómo funciona el gate de `pre-push-qa`
