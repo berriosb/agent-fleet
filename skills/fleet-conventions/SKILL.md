@@ -2,7 +2,7 @@
 name: fleet-conventions
 description: "Reglas universales de Bastián: línea roja, idioma, verificación, borrado y entregables. Generado desde el vault; aplicar en TODO trabajo, sin importar el agente o el lenguaje."
 version: 1.0.0
-author: Bastián Berrios (fuente: Agent-Shared/conventions.md)
+author: "Bastián Berrios (fuente: Agent-Shared/conventions.md)"
 license: MIT
 platforms: [linux, macos]
 metadata:
