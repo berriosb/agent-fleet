@@ -8,6 +8,7 @@ licencia de su origen. Los avisos exigidos por Apache-2.0 están en `NOTICE`.
 | Skill | Autor | Licencia |
 |---|---|---|
 | `fleet-conventions` | Bastián Berrios | MIT |
+| `session-handoff` | Bastián Berrios | MIT |
 
 ## Skills adaptadas
 
@@ -15,24 +16,25 @@ licencia de su origen. Los avisos exigidos por Apache-2.0 están en `NOTICE`.
 |---|---|---|---|
 | `pre-push-qa` | Propio (historial migrado desde `berriosb/pre-push-qa`) | MIT | developing |
 | `verification-before-completion` | [`obra/superpowers`](https://github.com/obra/superpowers) `skills/verification-before-completion` | MIT | Copy literal. Sin cambios. |
-| `domain-modeling` | [`mattpocock/skills`](https://github.com/mattpocock/skills) `skills/engineering/domain-modeling` | MIT | Copy literal. Sin cambios. |
-| `fleet-interview` | [`mattpocock/skills`](https://github.com/mattpocock/skills) `skills/productivity/grilling` | MIT | Copy literal. Renombrada de `grilling` para no colisionar con el original upstream. Ver nota abajo. |
+| `systematic-debugging` | [`obra/superpowers`](https://github.com/obra/superpowers) `skills/systematic-debugging` | MIT | Incluye guías de soporte (`root-cause-tracing.md`, `defense-in-depth.md`, `condition-based-waiting.md`). Adaptada para eliminar prefijos `superpowers:*`. |
+| `domain-modeling` | [`mattpocock/skills`](https://github.com/mattpocock/skills) `skills/engineering/domain-modeling` | MIT | Incluye plantillas `GLOSSARY-FORMAT.md` y `ADR-FORMAT.md`. |
+| `fleet-interview` | [`mattpocock/skills`](https://github.com/mattpocock/skills) `skills/productivity/grilling` | MIT | Renombrada de `grilling` (directorio y `name` en frontmatter) para no colisionar con el original upstream. Ver nota abajo. |
 | `work-unit-commits` | [`Gentleman-Programming/gentle-ai`](https://github.com/Gentleman-Programming/gentle-ai) `skills/work-unit-commits` | Apache-2.0 | Copy literal. Sin cambios. |
 | `cognitive-doc-design` | [`Gentleman-Programming/gentle-ai`](https://github.com/Gentleman-Programming/gentle-ai) `skills/cognitive-doc-design` | Apache-2.0 | Copy literal. Sin cambios. |
 
 ### Por qué `grilling` → `fleet-interview`
 
 El original (`grill-me`) es un puntero de 157 bytes que invoca la skill `grilling`. Aquí se
-instala la skill con la lógica real y se le da un nombre propio, para que instalar
-`npx skills add mattpocock/skills` más adelante no deje dos skills con el mismo nombre
+instala la skill con la lógica real y se le da un nombre propio (`fleet-interview`), para que
+instalar `npx skills add mattpocock/skills` más adelante no deje dos skills con el mismo nombre
 compitiendo en el mismo agente.
 
 Si preferís el nombre original, renombrá el directorio y el campo `name` del frontmatter.
 
 ## Licencias upstream completas
 
-- **MIT** — `pre-push-qa`, `verification-before-completion`, `domain-modeling`,
-  `fleet-interview`
+- **MIT** — `pre-push-qa`, `verification-before-completion`, `systematic-debugging`,
+  `domain-modeling`, `fleet-interview`
 - **Apache-2.0** — `work-unit-commits`, `cognitive-doc-design`
 
 El texto completo de ambas licencias está en [`LICENSES/`](LICENSES/):

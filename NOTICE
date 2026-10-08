@@ -4,10 +4,12 @@ Copyright 2026 Bastián Berrios
 This product includes software developed by third parties.
 
 --------------------------------------------------------------------------------
-verification-before-completion
+verification-before-completion, systematic-debugging
 Copyright (c) 2025 Jesse Vincent (obra/superpowers)
 Licensed under the MIT License. See LICENSES/MIT-obra-superpowers.txt
-Obtained from: https://github.com/obra/superpowers (skills/verification-before-completion)
+Obtained from: https://github.com/obra/superpowers
+  - skills/verification-before-completion
+  - skills/systematic-debugging
 
 domain-modeling, fleet-interview
 Copyright (c) 2026 Matt Pocock (mattpocock/skills)
