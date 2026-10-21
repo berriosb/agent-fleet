@@ -24,6 +24,13 @@ Chequeos
 6. la regex de deteccion de `.env` es identica en los tres lugares que la replican.
 7. la cadena: CHAIN.md y cada SKILL.md declaran las mismas fases, y toda skill del repo
    aparece en la cadena. El orden no puede quedar solo en un diagrama de README.
+8. comandos replicados: cada comando que vive en mas de un sitio esta en su forma
+   canonica en todos ellos (mismo mecanismo que el punto 6, para los comandos).
+9. flags prohibidos: ningun ejecutable le pasa a una herramienta un flag que no
+   acepta. `--if-present` a `tsc` es el caso que motivo el chequeo.
+10. la CI no reimplementa el gate: invoca al runner y no trae comandos propios de
+    lint, tipos o tests. Una copia propia diverge, y divergir en silencio es
+    exactamente como se rompe un gate.
 
 Uso
 ───
@@ -52,6 +59,75 @@ ENV_PATTERN_SITES = [
     SKILLS_DIR / "pre-push-qa" / "examples" / "pre-push.sh",
     SKILLS_DIR / "pre-push-qa" / "SKILL.md",
 ]
+
+# Comandos que el repo replica en mas de un sitio. Cada entrada declara la forma
+# canonica y los sitios donde debe aparecer. Si alguien edita uno solo, este
+# chequeo lo reporta: es el mismo mecanismo que ya funciona para la regex de
+# `.env`, aplicado a los comandos.
+REPLICATED_COMMANDS = [
+    {
+        "name": "typecheck de TypeScript",
+        "canonical": "--noEmit",
+        "sites": [
+            SKILLS_DIR / "pre-push-qa" / "scripts" / "run.sh",
+            SKILLS_DIR / "pre-push-qa" / "SKILL.md",
+        ],
+    },
+]
+
+# Flags que la herramienta destino NO acepta. Un flag invalido no rompe nada
+# de forma visible: la herramienta lo rechaza, el script sigue, y el gate deja
+# de cubrir el caso que cubria.
+#
+# El que motivo esto: `tsc --noEmit --if-present`. `--if-present` pertenece al
+# runner de scripts (pnpm/npm run), no al compilador. tsc responde "Unknown
+# compiler option '--if-present'" y sale con codigo 1, asi que el gate rechazaba
+# TODOS los repos TypeScript. Vivia en tres sitios y nadie lo verificaba.
+FORBIDDEN_CLI = [
+    (
+        r"[^\n]*--noEmit[^\n]*--if-present",
+        (
+            "el typecheck no puede recibir `--if-present`: ese flag pertenece al runner "
+            "de scripts (pnpm/npm run), no a tsc. tsc responde 'Unknown compiler option' "
+            "y sale con codigo 1, asi que el gate rechazaba TODOS los repos TypeScript."
+        ),
+    ),
+    (
+        r"\btsc\b[^\n]*--if-present",
+        (
+            "`--if-present` es un flag del runner de scripts (pnpm/npm run), no de tsc. "
+            "tsc responde 'Unknown compiler option' y sale con codigo 1: el gate "
+            "rechazaba todos los repos TypeScript."
+        ),
+    ),
+]
+
+# Comandos que la CI no debe traer: los ejecuta el runner. Una copia propia
+# diverge, y esa copia fue la que dejo de fallar.
+FORBIDDEN_IN_WORKFLOW = [
+    "tsc --noEmit",
+    "ruff check",
+    "mypy .",
+    "pytest -q",
+    "pnpm test",
+    "npm test",
+    "yarn test",
+    "bun test",
+    "run lint",
+    "run build",
+    "terraform fmt",
+]
+
+# La CI tiene que invocar el runner, no reimplementarlo.
+REQUIRED_IN_WORKFLOW = [
+    "run.sh --detect",
+    "run.sh --scope static",
+    "run.sh --scope tests",
+]
+
+# Archivos donde un flag invalido rompe el gate. Los `.md` quedan afuera a
+# proposito: la documentacion puede (y debe) nombrar el flag que se prohibe.
+CODE_SUFFIXES = {".sh", ".js", ".yml", ".yaml", ".py"}
 
 TEXT_SUFFIXES = {
     ".md", ".txt", ".py", ".sh", ".js", ".yml", ".yaml", ".json",
@@ -261,6 +337,90 @@ def check_env_pattern(errors: list[str]) -> None:
             )
 
 
+def check_replicated_commands(errors: list[str]) -> None:
+    """Un comando replicado tiene que estar en su forma canonica en todos los sitios."""
+    for spec in REPLICATED_COMMANDS:
+        for path in spec["sites"]:
+            if not path.is_file():
+                fail(errors, f"falta {path.relative_to(REPO)}")
+                continue
+            content = path.read_text(encoding="utf-8")
+            if spec["canonical"] not in content:
+                fail(
+                    errors,
+                    f"{path.relative_to(REPO)}: no usa la forma canonica de "
+                    f"{spec['name']} ('{spec['canonical']}')",
+                )
+
+
+def iter_code_files() -> list[Path]:
+    """Archivos ejecutables del repo: shell, js, python y workflows.
+
+    Este archivo queda afuera: define los patrones prohibidos y los documenta,
+    asi que los contiene literalmente. Un archivo no puede declararse invalido
+    a si mismo.
+    """
+    self_path = Path(__file__).resolve()
+    found: list[Path] = []
+    for path in REPO.rglob("*"):
+        if not path.is_file():
+            continue
+        if ".git" in path.parts or "node_modules" in path.parts:
+            continue
+        if path.resolve() == self_path:
+            continue
+        if path.suffix.lower() in CODE_SUFFIXES:
+            found.append(path)
+    return sorted(found)
+
+
+def check_forbidden_cli(errors: list[str]) -> None:
+    """Ningun ejecutable puede pasarle a una herramienta un flag que no acepta."""
+    for path in iter_code_files():
+        content = path.read_text(encoding="utf-8", errors="ignore")
+        for pattern, why in FORBIDDEN_CLI:
+            for match in re.finditer(pattern, content):
+                lineno = content[: match.start()].count("\n") + 1
+                fail(errors, f"{path.relative_to(REPO)}:{lineno}: flag invalido — {why}")
+
+
+def check_ci_uses_runner(errors: list[str]) -> None:
+    """La CI invoca el runner; no trae su propia copia de los comandos.
+
+    La duplicacion es la causa de fondo de los dos bugs mas caros del gate: la
+    copia de la CI dejo de fallar porque cada chequeo terminaba en `|| true` y
+    los tests iban por un pipe que devuelve el codigo de `tail`. Si la CI
+    vuelve a traer comandos propios, ese arreglo se deshace en silencio.
+    """
+    workflows = sorted((REPO / ".github" / "workflows").glob("*.yml"))
+    if not workflows:
+        fail(errors, "no hay workflows en .github/workflows/")
+        return
+
+    for path in workflows:
+        content = path.read_text(encoding="utf-8")
+        rel = path.relative_to(REPO)
+        for command in FORBIDDEN_IN_WORKFLOW:
+            if command in content:
+                fail(
+                    errors,
+                    f"{rel}: '{command}' no debe aparecer en la CI. Los comandos del "
+                    "gate se ejecutan desde skills/pre-push-qa/scripts/run.sh.",
+                )
+
+    reusable = REPO / ".github" / "workflows" / "qa.yml"
+    if reusable.is_file():
+        content = reusable.read_text(encoding="utf-8")
+        for required in REQUIRED_IN_WORKFLOW:
+            if required not in content:
+                fail(
+                    errors,
+                    f"{reusable.relative_to(REPO)}: no invoca '{required}'. La CI tiene "
+                    "que delegar en el runner para que local y remoto apliquen los "
+                    "mismos criterios.",
+                )
+
+
 def check_chain(errors: list[str]) -> None:
     """
     Verifica que el orden de las skills sea consistente y verificable.
@@ -344,6 +504,9 @@ def main() -> int:
     check_cjk(errors)
     check_fences(errors)
     check_env_pattern(errors)
+    check_replicated_commands(errors)
+    check_forbidden_cli(errors)
+    check_ci_uses_runner(errors)
     check_chain(errors)
 
     if errors:
