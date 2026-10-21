@@ -34,6 +34,7 @@ mcode, y cualquier otro cliente del [estándar Agent Skills](https://agentskills
 | `scripts/verify-hook.sh` | Round-trip del gate: el hook acepta, consume y bloquea como debe. |
 | `scripts/verify-runner.sh` | Round-trip del runner: omite lo que no tiene, bloquea lo que falla, reparte por scope. |
 | `scripts/verify.sh` | Verificación del repo. Hermética: es lo que corre la CI. `--install` suma el estado de tu máquina. |
+| `scripts/install.sh` | Instala las skills en los cuatro roots donde los agentes las buscan, y deja la máquina en el estado que `check-install.py` exige. |
 | `scripts/install-dev-tools.sh` | Instala `ruff`, `mypy` y `pytest` desde `requirements-dev.txt`. La CI lee el mismo archivo. |
 | `scripts/release.sh` | Mueve el tag `v1` (que es la release) al HEAD. Con `--push` lo publica. |
 | `requirements-dev.txt` | Las herramientas de QA del repo. Es la única declaración: la leen la CI y el local. |
@@ -90,10 +91,34 @@ detecta un error, no solo si se detecta.
 ### Global (recomendado)
 
 ```bash
+git clone https://github.com/berriosb/agent-fleet.git ~/Proyectos/agent-fleet
+~/Proyectos/agent-fleet/scripts/install.sh
+```
+
+El script deja la máquina en el estado que el repo exige:
+
+- Enlaza el **directorio completo** de cada skill (no solo `SKILL.md`: sin
+  `scripts/` y `prompts/` el agente no puede correr el runner) en los cuatro
+  roots donde los agentes las buscan: `~/.agents/skills`, `~/.claude/skills`,
+  `~/.codex/skills` y `~/.gemini/skills`.
+- Deja el runner en `~/.local/bin/pre-push-qa`.
+- Resuelve las copias divergentes de estas skills en los perfiles de Hermes,
+  reemplazándolas por enlaces al repo.
+- Al final corre `check-install.py`, así que el resultado no es una promesa.
+
+Lo que reemplaza va a la papelera (`gio trash`), no se borra. Con `--hook`
+instala además el hook global de push (enforcement duro).
+
+### Con el CLI de skills
+
+```bash
 npx skills add berriosb/agent-fleet -g
 ```
 
-Instala en todos los agentes detectados en la máquina.
+Deja las skills en `~/.agents/skills/`, de donde leen OpenCode, Amp, Antigravity,
+Cline y unos veinte más. **No** las deja en `~/.claude/skills`, `~/.codex/skills`
+ni `~/.gemini/skills`: Claude Code, Codex y Gemini leen roots propios. Para
+cubrir esos tres, corré `scripts/install.sh` después.
 
 ### Manual (symlinks)
 
