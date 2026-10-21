@@ -33,6 +33,7 @@ mcode, y cualquier otro cliente del [estándar Agent Skills](https://agentskills
 | `scripts/check-install.py` | Estado de **tu máquina**: skills sin enlazar y copias divergentes en los perfiles de Hermes. |
 | `scripts/verify-hook.sh` | Round-trip del gate: el hook acepta, consume y bloquea como debe. |
 | `scripts/verify.sh` | Verificación del repo. Hermética: es lo que corre la CI. `--install` suma el estado de tu máquina. |
+| `scripts/release.sh` | Mueve el tag `v1` (que es la release) al HEAD. Con `--push` lo publica. |
 | `upstream/ATTRIBUTION.md` | De dónde viene cada skill y bajo qué licencia. |
 
 ## El flujo que encadenan
@@ -241,6 +242,22 @@ La verificación del repo es **hermética**: da el mismo resultado en un clone l
 tu máquina, y por eso es la que corre la CI. El estado de tu instalación (las skills
 enlazadas en `~/.agents`, `~/.claude`, `~/.codex`, `~/.gemini`) es otra cosa: se
 comprueba aparte con `python3 scripts/check-install.py`.
+
+## Publicar una versión
+
+Los repos consumidores invocan este repo con
+`uses: berriosb/agent-fleet/.github/workflows/qa.yml@v1`, y ese workflow hace checkout del runner
+en `ref: v1`. El tag `v1` **es** la release: si no se mueve junto con el runner, los arreglos al
+gate no llegan a los consumidores y el fallo aparece en el repo de otro.
+
+```bash
+./scripts/release.sh          # deja el tag v1 en HEAD, local
+./scripts/release.sh --push   # lo publica en el remoto
+```
+
+El script verifica que el working tree esté limpio y que el repo pase su verificación antes de
+mover nada. La CI lo vigila: el job `tag-drift` falla si `v1` no contiene el runner actual, y
+solo corre en push a `main` (en un PR el tag todavía no puede incluir el cambio).
 
 ## Qué NO hace este repo
 

@@ -84,6 +84,12 @@ python3 scripts/check-install.py             # o: ./scripts/verify.sh --install
 Los tres primeros también corren en CI (`.github/workflows/validate.yml`), contra los
 mismos scripts: local y remoto aplican exactamente los mismos criterios.
 
+Publicar una versión mueve el tag `v1`, que es lo que consumen los repos:
+
+```bash
+./scripts/release.sh --push
+```
+
 ## Instalación en la máquina
 
 ```bash
