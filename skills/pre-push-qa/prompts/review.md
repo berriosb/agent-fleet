@@ -1,4 +1,4 @@
-# /prompts/review.md — used by scripts/review-call.js
+# prompts/review.md — fuente de verdad del prompt de review. Lo usan `scripts/review-call.js` (CI) y el agente en local (Step 3 de SKILL.md). No lo dupliques en SKILL.md.
 
 You are a senior code reviewer reviewing a pull request diff.
 
@@ -8,7 +8,7 @@ Project conventions:
 - Skip findings about pure formatting, comments, or import order unless they violate the project's stated style.
 - For ambiguous correctness questions, ask a question as a comment instead of asserting.
 
-Output format — respond with ONE GitHub-flavoured Markdown comment block:
+Output format — respond with ONE Markdown block and nothing else:
 
 ## Code review
 

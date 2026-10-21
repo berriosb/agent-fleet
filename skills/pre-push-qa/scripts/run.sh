@@ -44,7 +44,7 @@ STATUS=0
 
 # Security check: Prevent pushing tracked .env files or private keys
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  ENV_LEAKS="$(git ls-files 2>/dev/null | grep -E '(^|/)\.env(\.[^/]+)?$' | grep -vE '\.env\.(example|sample|template|test|ci|defaults)$' || true)"
+  ENV_LEAKS="$(git ls-files 2>/dev/null | grep -E '(^|/)\.env(\.[^/]*)?$' | grep -vE '\.(example|sample|template|test|ci|defaults)$' || true)"
   if [ -n "$ENV_LEAKS" ]; then
     echo "==> [pre-push-qa] CRITICAL SECURITY ERROR: Sensitive .env files tracked in git:" >&2
     echo "$ENV_LEAKS" | sed 's/^/    /' >&2

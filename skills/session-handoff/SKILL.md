@@ -36,7 +36,7 @@ Si no quedó escrito en `working-context.md` o en las memorias del proyecto, el 
 
 Cuando una tarea queda en curso o requiere continuidad, genera o actualiza `working-context.md` en la raíz del repo (o en el directorio de trabajo del proyecto) con esta estructura:
 
-```markdown
+````markdown
 # Working Context — <Nombre del Proyecto o Tarea>
 
 Última actualización: YYYY-MM-DD HH:MM (por <Agente/Modelo>)
@@ -63,7 +63,7 @@ pytest tests/unit/test_auth.py
 
 ## 5. Próxima acción inmediata (Next Step)
 <El comando o paso exacto que el próximo agente debe ejecutar primero al retomar.>
-```
+````
 
 ## Protocolo de Handoff entre Agentes
 

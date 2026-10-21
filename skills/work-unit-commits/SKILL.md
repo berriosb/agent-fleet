@@ -2,9 +2,9 @@
 name: work-unit-commits
 description: "Plan commits as reviewable work units. Trigger: implementation, commit splitting, chained PRs, or keeping tests and docs with code."
 license: Apache-2.0
+version: 1.0.0
 metadata:
   author: gentleman-programming
-  version: "1.0"
 ---
 
 ## When to Use
@@ -29,7 +29,7 @@ Use it for:
 | Keep docs with the user-visible change | Docs belong with the feature or workflow they explain. |
 | Tell a story | A reviewer should understand why each commit exists from its diff and message. |
 | Future PR-ready | Each commit should be a candidate chained PR when the change grows. |
-| SDD workload guard | If SDD tasks forecast a >400-line change, group commits into chained PR slices before implementation. |
+| Large-change guard | If the change forecasts more than 400 changed lines, group commits into chained PR slices before implementation. |
 
 ## Work Unit Checklist
 
@@ -62,29 +62,29 @@ Use work-unit commits as the foundation for chained PRs:
 3. Commit it with a Conventional Commit message.
 4. If the PR approaches 400 changed lines, promote commits or groups of commits into chained PRs.
 
-## ODD Relationship
+## Evidence and Thresholds
 
-Organic Driven Development (ODD) closes every substantial task with a work-unit commit on the feature branch:
+Every work unit closes with:
 
-- Every ODD task closes with at least one work-unit commit, branch first when on the default branch, with tests and docs alongside the behavior and a Conventional Commit message.
-- The native review candidate is that commit, or the PR slice it belongs to when review is deferred, against the previous reviewed boundary. It is never a TODO checkbox and never the accumulated feature branch.
-- The running authored line count from work-unit commits feeds the delivery-strategy vocabulary: `ask-on-risk`, `auto-chain`, `single-pr`, `exception-ok`.
-- Count authored additions plus deletions for the `>400` threshold. Exclude generated goldens from that authored count, but include every generated file in complete snapshot identity and receipt validation.
-- The ODD feature document records the commit identity as evidence and, once a delivery strategy applies, the chosen chain strategy and slice boundaries (which commits each PR holds).
+- a clear start state,
+- a clear finished state,
+- verification inside the same unit,
+- a rollback that does not remove unrelated work.
 
-Each ODD work unit should map cleanly to a commit or PR with:
+The implementation evidence for a work unit MUST include:
 
-- clear start state,
-- clear finished state,
-- verification in the same unit,
-- rollback that does not remove unrelated work.
+- the focused test command and its exact result,
+- the runtime harness command/scenario and its exact result, or an explicit `N/A` with the
+  reason why no runtime boundary exists,
+- the rollback boundary, stated independently of commit creation — uncommitted work units
+  require it too.
 
-Its implementation evidence MUST include:
+Count **authored** additions plus deletions for the `>400` threshold: exclude generated
+goldens from the authored count, but include every generated file in the snapshot identity
+and receipt validation.
 
-- Focused test command and exact result.
-- Runtime harness command/scenario and exact result, or explicit `N/A` with reason.
-- Rollback boundary stated independently of commit creation; uncommitted work units still require it.
-- When fixing a bounded review ledger, group atomic work units inside the single correction transaction; work-unit count never creates another fix budget.
+When a change forecasts more than 400 changed lines, group the commits into chained PR
+slices before implementing, not after.
 
 ## Commands
 

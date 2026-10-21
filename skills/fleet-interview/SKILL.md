@@ -1,6 +1,8 @@
 ---
 name: fleet-interview
-description: "Grill the user relentlessly about a plan, decision, or idea. Use when the user wants to stress-test their thinking, or uses any 'grill' / interview trigger phrases."
+description: "Interview the user relentlessly about a plan, decision, or idea before implementing it. Use when a task is non-trivial or has open decisions: the user wants to stress-test their thinking, or asks to grill or interview the plan. Facts are the agent's job; decisions are the user's."
+license: MIT
+version: 1.1.0
 ---
 
 Interview the user relentlessly until you reach a shared understanding. Map this as a **design tree**: every decision branches into the decisions that hang off it.

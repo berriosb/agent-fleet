@@ -69,9 +69,13 @@ function loadAutoFixPrompt() {
       return fs.readFileSync(p, 'utf8');
     }
   }
-  return `You are a surgical code repair agent. Provide JSON with:
-{"file": "path", "search": "exact string", "replace": "replacement", "summary": "message"}
-or {"skip": "reason"}`;
+  // Sin prompt canonico no hay auto-fix. Fallar es mejor que enviar un prompt
+  // improvisado: produciria un parche bajo reglas distintas a las de la skill.
+  throw new Error(
+    'No se encontro el prompt canonico de auto-fix. Buscado en:\n  ' +
+      candidatePaths.join('\n  ') +
+      '\nprompts/auto-fix.md es la fuente de verdad (la misma que usa la skill en local).'
+  );
 }
 
 function postHttpRequest(targetUrl, headers, payload) {

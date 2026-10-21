@@ -38,7 +38,20 @@ else
 fi
 
 # Safety check: Block push immediately if dangerous .env files or private keys are tracked
-ENV_LEAKS="$(git ls-files 2>/dev/null | grep -E '(^|/)\.env(\.[^/]+)?$' | grep -vE '\.env\.(example|sample|template|test|ci|defaults)$' || true)"
+# A path is allowed when its FINAL segment is a template marker: `.env.example`,
+# `.env.staging.example`, `.env.production.template`, `.env.test`, `.env.ci`,
+# `.env.defaults`, and any path ending in `.sample` / `.template` / `.defaults`.
+# The previous pattern only matched `.env.example` verbatim, so a repo that
+# tracked `.env.staging.example` — a template full of placeholders, and one
+# that was ALREADY on the remote before this check existed — was unpushable.
+#
+# Still blocked: anything whose last segment is not a template marker
+# (`.env`, `.env.local`, `.env.production`, `.env.staging`).
+#
+# NOTE: `.envrc.defaults` and friends are never detected in the first place — the
+# detection pattern requires the segment to start with `.env`, so those files are
+# invisible to this check regardless of the allow-list.
+ENV_LEAKS="$(git ls-files 2>/dev/null | grep -E '(^|/)\.env(\.[^/]*)?$' | grep -vE '\.(example|sample|template|test|ci|defaults)$' || true)"
 if [ -n "$ENV_LEAKS" ]; then
   echo "==> [pre-push-qa] CRITICAL PUSH BLOCKED: Tracked .env files detected:" >&2
   echo "$ENV_LEAKS" | sed 's/^/    /' >&2

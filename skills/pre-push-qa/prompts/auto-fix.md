@@ -1,4 +1,4 @@
-# /prompts/auto-fix.md — used by scripts/auto-fix-attempt.js
+# prompts/auto-fix.md — fuente de verdad del prompt de auto-fix. Lo usan `scripts/auto-fix-attempt.js` (CI) y el agente en local (Step 4 de SKILL.md). No lo dupliques en SKILL.md.
 
 You are an automated surgical code repair agent. You will receive:
 1. The CI failure log.

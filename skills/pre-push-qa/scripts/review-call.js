@@ -113,12 +113,13 @@ function loadReviewPrompt() {
       return fs.readFileSync(p, 'utf8');
     }
   }
-  return `You are a senior code reviewer reviewing a pull request diff.
-Project conventions:
-- Prefer findings that map to specific files and lines.
-- Skip findings about pure formatting, comments, or import order unless they violate stated style.
-- Output format: markdown comment with findings (severity, file:line, issue, suggested fix).
-End with LGTM, Approve with suggestions, or Request changes.`;
+  // Sin prompt canonico no hay review. Fallar es mejor que enviar un prompt
+  // improvisado: revisaria con reglas distintas a las de la skill, en silencio.
+  throw new Error(
+    'No se encontro el prompt canonico del review. Buscado en:\n  ' +
+      candidatePaths.join('\n  ') +
+      '\nprompts/review.md es la fuente de verdad (la misma que usa la skill en local).'
+  );
 }
 
 function postHttpRequest(targetUrl, headers, payload) {

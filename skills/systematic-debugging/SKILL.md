@@ -1,6 +1,7 @@
 ---
 name: systematic-debugging
 description: "Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes. Enforces root cause investigation and red-green reproduction before patching."
+version: 1.0.0
 license: MIT
 ---
 
