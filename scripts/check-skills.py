@@ -31,6 +31,9 @@ Chequeos
 10. la CI no reimplementa el gate: invoca al runner y no trae comandos propios de
     lint, tipos o tests. Una copia propia diverge, y divergir en silencio es
     exactamente como se rompe un gate.
+11. AGENTS.md declara las mismas fases que CHAIN.md, y el README lista todas las
+    skills. AGENTS.md es lo que un agente lee de verdad: su tabla no puede
+    quedar vieja en silencio.
 
 Uso
 ───
@@ -128,6 +131,24 @@ REQUIRED_IN_WORKFLOW = [
 # Archivos donde un flag invalido rompe el gate. Los `.md` quedan afuera a
 # proposito: la documentacion puede (y debe) nombrar el flag que se prohibe.
 CODE_SUFFIXES = {".sh", ".js", ".yml", ".yaml", ".py"}
+
+# Formato de las tablas de fases. Son dos archivos con el mismo contenido y dos
+# formatos distintos, asi que cada uno tiene su patron.
+#   CHAIN.md:  | 3 | Verificacion | `pre-push-qa` | ... |
+#   AGENTS.md: | 3 · Verificacion | `pre-push-qa` | ... |
+CHAIN_ROW_RE = re.compile(r"^\|\s*(\d+)\s*\|[^|]*\|\s*`([a-z0-9-]+)`\s*\|")
+AGENTS_ROW_RE = re.compile(r"^\|\s*(\d+)\s*·\s*[^|]*\|\s*`([a-z0-9-]+)`\s*\|")
+
+
+def parse_phase_table(text: str, row_re: re.Pattern[str]) -> dict[str, set[int]]:
+    """Extrae skill -> fases de una tabla de fases."""
+    phases: dict[str, set[int]] = {}
+    for line in text.split("\n"):
+        row = row_re.match(line)
+        if not row:
+            continue
+        phases.setdefault(row.group(2), set()).add(int(row.group(1)))
+    return phases
 
 TEXT_SUFFIXES = {
     ".md", ".txt", ".py", ".sh", ".js", ".yml", ".yaml", ".json",
@@ -421,6 +442,57 @@ def check_ci_uses_runner(errors: list[str]) -> None:
                 )
 
 
+def check_agents_matches_chain(errors: list[str]) -> None:
+    """AGENTS.md tiene que declarar las mismas fases que CHAIN.md.
+
+    AGENTS.md es el archivo que un agente lee de verdad: es lo que se carga sin
+    depender de que el agente "se acuerde" de buscarla. Si su tabla queda
+    vieja, el orden que el agente sigue es otro, y no hay ninguna señal: el
+    error aparece semanas despues, en el comportamiento de otro agente.
+    """
+    chain_path = SKILLS_DIR / "fleet-conventions" / "CHAIN.md"
+    agents_path = REPO / "AGENTS.md"
+    if not chain_path.is_file() or not agents_path.is_file():
+        fail(errors, "faltan AGENTS.md o CHAIN.md para comparar la cadena")
+        return
+
+    chain_phases = parse_phase_table(chain_path.read_text(encoding="utf-8"), CHAIN_ROW_RE)
+    agents_phases = parse_phase_table(agents_path.read_text(encoding="utf-8"), AGENTS_ROW_RE)
+
+    if not agents_phases:
+        fail(
+            errors,
+            "AGENTS.md no tiene una tabla de fases con el formato "
+            "| fase · nombre | `skill` | ... |",
+        )
+        return
+
+    for skill, phases in sorted(chain_phases.items()):
+        if skill not in agents_phases:
+            fail(errors, f"AGENTS.md no menciona la skill '{skill}'")
+        elif agents_phases[skill] != phases:
+            fail(
+                errors,
+                f"AGENTS.md: '{skill}' declara las fases {sorted(agents_phases[skill])} "
+                f"pero CHAIN.md le asigna {sorted(phases)}",
+            )
+    for skill in sorted(agents_phases):
+        if skill not in chain_phases:
+            fail(errors, f"AGENTS.md declara '{skill}', que no esta en CHAIN.md")
+
+
+def check_readme_lists_skills(errors: list[str]) -> None:
+    """Cada skill tiene que aparecer en la tabla de rutas del README."""
+    readme = REPO / "README.md"
+    if not readme.is_file():
+        fail(errors, "falta README.md")
+        return
+    content = readme.read_text(encoding="utf-8")
+    for skill in sorted(p.parent.name for p in SKILLS_DIR.glob("*/SKILL.md")):
+        if f"skills/{skill}/" not in content:
+            fail(errors, f"README.md no lista la skill '{skill}' (falta skills/{skill}/)")
+
+
 def check_chain(errors: list[str]) -> None:
     """
     Verifica que el orden de las skills sea consistente y verificable.
@@ -440,16 +512,10 @@ def check_chain(errors: list[str]) -> None:
     chain = chain_path.read_text(encoding="utf-8")
 
     # Tabla: | <fase> | <nombre> | `<skill>` | <cuando> |
-    chain_phases: dict[str, set[int]] = {}
+    chain_phases = parse_phase_table(chain, CHAIN_ROW_RE)
     phase_ids: set[int] = set()
-    for line in chain.split("\n"):
-        row = re.match(r"^\|\s*(\d+)\s*\|[^|]*\|\s*`([a-z0-9-]+)`\s*\|", line)
-        if not row:
-            continue
-        phase = int(row.group(1))
-        skill = row.group(2)
-        phase_ids.add(phase)
-        chain_phases.setdefault(skill, set()).add(phase)
+    for phases in chain_phases.values():
+        phase_ids |= phases
 
     if not chain_phases:
         fail(errors, "CHAIN.md no tiene filas de fase con el formato | fase | nombre | `skill` | ... |")
@@ -508,6 +574,8 @@ def main() -> int:
     check_forbidden_cli(errors)
     check_ci_uses_runner(errors)
     check_chain(errors)
+    check_agents_matches_chain(errors)
+    check_readme_lists_skills(errors)
 
     if errors:
         for message in errors:

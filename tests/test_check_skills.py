@@ -249,5 +249,73 @@ class TestCiUsesRunner(ScriptTestCase):
         self.assertEqual(errors, [])
 
 
+class TestAgentsMatchesChain(ScriptTestCase):
+    script = "check-skills.py"
+
+    def _write_agents(self, entries: dict[str, set[int]]) -> None:
+        rows = []
+        for skill, phases in sorted(entries.items()):
+            for phase in sorted(phases):
+                rows.append(f"| {phase} · Nombre | `{skill}` | Cuando toque. |")
+        (self.root / "AGENTS.md").write_text(
+            "# Contrato\n\n| Fase | Skill | Cuándo |\n|---|---|---|\n"
+            + "\n".join(rows)
+            + "\n",
+            encoding="utf-8",
+        )
+
+    def test_fases_coincidentes_pasan(self):
+        self.use_root()
+        write_skill(self.root, "alpha", phases=(1, 2))
+        write_chain(self.root, {"alpha": {1, 2}})
+        self._write_agents({"alpha": {1, 2}})
+        errors: list[str] = []
+        self.module.check_agents_matches_chain(errors)
+        self.assertEqual(errors, [])
+
+    def test_fase_desactualizada_se_reporta(self):
+        self.use_root()
+        write_skill(self.root, "alpha", phases=(1, 2))
+        write_chain(self.root, {"alpha": {1, 2}})
+        self._write_agents({"alpha": {1}})
+        errors: list[str] = []
+        self.module.check_agents_matches_chain(errors)
+        self.assertTrue(any("pero CHAIN.md le asigna" in e for e in errors))
+
+    def test_skill_faltante_en_agents_se_reporta(self):
+        self.use_root()
+        write_skill(self.root, "alpha", phases=(1,))
+        write_chain(self.root, {"alpha": {1}})
+        self._write_agents({})
+        errors: list[str] = []
+        self.module.check_agents_matches_chain(errors)
+        self.assertTrue(any("no tiene una tabla de fases" in e for e in errors))
+
+
+class TestReadmeListsSkills(ScriptTestCase):
+    script = "check-skills.py"
+
+    def test_skill_faltante_se_reporta(self):
+        self.use_root()
+        write_skill(self.root, "alpha")
+        (self.root / "README.md").write_text(
+            "| `skills/otra/` | Otra cosa |\n", encoding="utf-8"
+        )
+        errors: list[str] = []
+        self.module.check_readme_lists_skills(errors)
+        self.assertTrue(any("no lista la skill 'alpha'" in e for e in errors))
+
+    def test_todas_las_skills_listadas_pasan(self):
+        self.use_root()
+        write_skill(self.root, "alpha")
+        write_skill(self.root, "beta")
+        (self.root / "README.md").write_text(
+            "| `skills/alpha/` | A |\n| `skills/beta/` | B |\n", encoding="utf-8"
+        )
+        errors: list[str] = []
+        self.module.check_readme_lists_skills(errors)
+        self.assertEqual(errors, [])
+
+
 if __name__ == "__main__":
     unittest.main()
