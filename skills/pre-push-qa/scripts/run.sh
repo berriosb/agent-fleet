@@ -106,6 +106,10 @@ elif has_python_files; then
   # herramientas del PATH siguen sirviendo. Antes caia en `mixed` y no se
   # chequeaba nada: el gate verificaba el repo sin verificarlo.
   STACK="python"
+elif [ -f go.mod ]; then
+  STACK="go"
+elif [ -f Cargo.toml ]; then
+  STACK="cargo"
 elif compgen -G "*.tf" > /dev/null 2>&1 || find . -maxdepth 3 -name "*.tf" -not -path "*/.*" -print -quit | grep -q .; then
   STACK="terraform"
 elif [ -f Dockerfile ] || [ -f docker-compose.yml ] || [ -f docker-compose.yaml ]; then
@@ -392,6 +396,32 @@ case "$STACK" in
       fi
     else
       echo "==> [pre-push-qa] ERROR: 'bun' is required for this stack but not installed or not in PATH." >&2
+      STATUS=1
+    fi
+    ;;
+  go)
+    if command -v go >/dev/null 2>&1; then
+      if want_static; then
+        run_check "Running go vet..." go vet ./...
+      fi
+      if want_tests; then
+        run_test_check "Running go tests..." go test ./...
+      fi
+    else
+      echo "==> [pre-push-qa] ERROR: 'go' is required for this stack but not installed or not in PATH." >&2
+      STATUS=1
+    fi
+    ;;
+  cargo)
+    if command -v cargo >/dev/null 2>&1; then
+      if want_static; then
+        run_check "Running cargo check..." cargo check --all-targets
+      fi
+      if want_tests; then
+        run_test_check "Running cargo tests..." cargo test
+      fi
+    else
+      echo "==> [pre-push-qa] ERROR: 'cargo' is required for this stack but not installed or not in PATH." >&2
       STATUS=1
     fi
     ;;

@@ -142,6 +142,38 @@ else
   FAILED=1
 fi
 
+echo "    runner: --detect reconoce go y cargo..."
+GO_REPO="$WORK/gorepo"
+mkdir -p "$GO_REPO"
+(
+  cd "$GO_REPO"
+  git init -q
+  printf 'module ejemplo\n\ngo 1.21\n' > go.mod
+  printf 'package main\n\nfunc main() {}\n' > main.go
+  git add -A
+  git -c user.email=t@t -c user.name=t commit -qm init
+)
+CARGO_REPO="$WORK/cargorepo"
+mkdir -p "$CARGO_REPO"
+(
+  cd "$CARGO_REPO"
+  git init -q
+  printf '[package]\nname = "ejemplo"\nversion = "0.1.0"\nedition = "2021"\n' > Cargo.toml
+  git add -A
+  git -c user.email=t@t -c user.name=t commit -qm init
+)
+for pair in "$GO_REPO:go" "$CARGO_REPO:cargo"; do
+  dir="${pair%%:*}"
+  expected="${pair##*:}"
+  got="$(run_gate "$dir" --detect 2>/dev/null | tail -1)"
+  if [ "$got" = "$expected" ]; then
+    echo "    OK: --detect -> $expected"
+  else
+    echo "    ERROR: --detect devolvio '$got', se esperaba '$expected'" >&2
+    FAILED=1
+  fi
+done
+
 echo "    runner: un scope parcial no escribe el marcador..."
 MARKER="$PY_REPO/.git/pre-push-qa-ok"
 rm -f "$MARKER"

@@ -190,6 +190,8 @@ proyecto, sin secrets ni configuración externa:
 | **pnpm** / **yarn** / **bun** / **npm** | install con lockfile, lint, `tsc --noEmit`, tests, build |
 | **Python (uv)** | `uv sync`, `ruff`, `mypy`, `pytest`, `hadolint` si hay Dockerfile |
 | **Python (pip)** | `pip install -r requirements.txt`, `ruff`, autodetección de `pytest`/`unittest` |
+| **Go** | `go vet ./...`, `go test ./...` |
+| **Rust** | `cargo check --all-targets`, `cargo test` |
 | **Docker** | `hadolint` |
 | **Terraform** | `terraform fmt -check -recursive` |
 | **Docs** | se salta lint/tests de código |
@@ -322,7 +324,7 @@ paralelo: si el release falla, el tag no llega y el job falla al expirar la espe
 ## Roadmap
 
 - [ ] Tests baseline-aware (no romper si el test ya fallaba antes del diff)
-- [ ] Detección ampliada de stacks (Go `go test ./...`, Rust `cargo check && cargo test`)
+- [x] Detección ampliada de stacks (Go `go test ./...`, Rust `cargo check && cargo test`)
 - [ ] `to-spec` / `to-tickets` / `code-review` cuando haya issue tracker configurado
 
 ## Licencia

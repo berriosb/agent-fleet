@@ -86,6 +86,8 @@ implementation: do not reimplement the detection inline, because a second copy d
 | `uv.lock` / `pyproject.toml` | python | `ruff`, `mypy`, `pytest` via `uv run` |
 | `requirements.txt` / `setup.py` | pip | `ruff`, `mypy`, `pytest` (or `unittest` when pytest is absent) |
 | `*.py` with no manifest at all | python | `ruff`, `mypy`, `pytest` from `PATH`; each one is skipped when the tool is not installed |
+| `go.mod` | go | `go vet ./...`, `go test ./...` |
+| `Cargo.toml` | cargo | `cargo check --all-targets`, `cargo test` |
 | `package.json` (no lockfile) | npm | install, lint, `tsc --noEmit`, tests, build |
 | `*.tf` | terraform | `terraform fmt -check -recursive` |
 | `Dockerfile` / `docker-compose.*` | docker | `hadolint Dockerfile` |
@@ -118,6 +120,12 @@ available, the check is reported as skipped. This matters with `uv`: `uv run
 mypy` falls back to the PATH and, if the tool is not there either, answers
 `Failed to spawn` with exit code 2. Treating that as a failed typecheck made
 the same repository pass on a machine with mypy and fail on one without it.
+
+The exception is the **toolchain** of the project: `go`, `cargo`, `terraform` y
+`node`. Si el proyecto es de ese tipo y el toolchain no está, el gate no puede
+correr nada y el push se bloquea. La diferencia con `ruff` o `pytest` es que
+esas son herramientas de calidad: un proyecto puede no usarlas. Un proyecto Go
+sin Go instalado no se puede testear.
 
 ## Step 2 — Run static + tests (the cheap, fast, free part)
 
