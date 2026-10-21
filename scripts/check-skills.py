@@ -313,11 +313,15 @@ def check_chain(errors: list[str]) -> None:
     for skill in skills:
         path = SKILLS_DIR / skill / "SKILL.md"
         content = path.read_text(encoding="utf-8")
-        match = re.search(r"^## En la cadena\s*$(.*?)(?=^## |\Z)", content, re.M | re.DOTALL)
+        match = re.search(
+            r"^## En la cadena\s*$(.*?)(?=^## |\Z)", content, re.MULTILINE | re.DOTALL
+        )
         if not match:
             fail(errors, f"{skill}/SKILL.md: falta la seccion '## En la cadena'")
             continue
-        declared = {int(n) for n in re.findall(r"^Fase (\d+)\b", match.group(1), re.M)}
+        declared = {
+            int(n) for n in re.findall(r"^Fase (\d+)\b", match.group(1), re.MULTILINE)
+        }
         if not declared:
             fail(errors, f"{skill}/SKILL.md: la seccion 'En la cadena' no declara ninguna fase")
             continue

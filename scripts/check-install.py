@@ -95,7 +95,11 @@ def resolves_into_repo(path: Path) -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--quiet", action="store_true", help="solo el resumen")
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="oculta el mensaje de exito; los problemas siempre se reportan",
+    )
     args = parser.parse_args()
 
     skills = sorted(p.name for p in SKILLS_DIR.iterdir() if p.is_dir() and (p / "SKILL.md").is_file())
@@ -144,7 +148,7 @@ def main() -> int:
     if problems:
         for message in problems:
             print(message, file=sys.stderr)
-        print("", file=sys.stderr)
+        print(file=sys.stderr)
         print("Para enlazar todo en los directorios requeridos:", file=sys.stderr)
         print(
             '  SRC="$HOME/Proyectos/agent-fleet/skills"\n'
@@ -160,10 +164,11 @@ def main() -> int:
         print(f"\n{len(problems)} problema(s).", file=sys.stderr)
         return 1
 
-    print(
-        f"OK: {len(skills)} skills enlazadas en {checked_roots} directorios de agente; "
-        f"{len(hermes_dirs)} directorios de perfil Hermes revisados."
-    )
+    if not args.quiet:
+        print(
+            f"OK: {len(skills)} skills enlazadas en {checked_roots} directorios de agente; "
+            f"{len(hermes_dirs)} directorios de perfil Hermes revisados."
+        )
     return 0
 
 

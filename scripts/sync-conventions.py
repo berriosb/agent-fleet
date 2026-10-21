@@ -106,8 +106,8 @@ def read_curated_frontmatter() -> tuple[str, str]:
     if not m:
         return FALLBACK_NAME, FALLBACK_DESCRIPTION
     fm = m.group(1)
-    name = re.search(r"^name:\s*(.+)$", fm, re.M)
-    desc = re.search(r"^description:\s*(.+)$", fm, re.M)
+    name = re.search(r"^name:\s*(.+)$", fm, re.MULTILINE)
+    desc = re.search(r"^description:\s*(.+)$", fm, re.MULTILINE)
     name_val = name.group(1).strip().strip("\"'") if name else FALLBACK_NAME
     desc_val = desc.group(1).strip().strip("\"'") if desc else FALLBACK_DESCRIPTION
     return name_val, desc_val
