@@ -1,6 +1,6 @@
 ---
 name: fleet-conventions
-description: "Reglas universales de Bastián: línea roja, idioma, verificación, borrado y entregables. Generado desde el vault; aplicar en TODO trabajo, sin importar el agente o el lenguaje."
+description: "Reglas universales de Bastián: línea roja, idioma, verificación, borrado y entregables. Curado a mano desde el vault; aplicar en TODO trabajo, sin importar el agente o el lenguaje."
 version: 1.0.0
 author: "Bastián Berrios (fuente: Agent-Shared/conventions.md)"
 license: MIT
@@ -57,12 +57,16 @@ todavía no cubre (la regla CJK, `gio trash`) está acá a propósito.
   español con caracteres chinos.
 - El filtro de chat **no** cubre archivos. Solo el texto de la conversación pasa por el
   sanitizer.
-- Si la nota tiene índice + tracker, verificar los 3 archivos: heredan los fallos.
+- Chequeo portable, sin dependencias: `grep -nP '[\x{4e00}-\x{9fff}]' <archivo>`. En este
+  repo, `python3 scripts/check-skills.py` lo cubre en todos los archivos.
+- Si la nota tiene índice y tracker, verificar también esos archivos: heredan los fallos.
 
 ## 5. Borrado y seguridad
 
-- Nada de `rm`. Usar el equivalente recuperable. En esta máquina: `gio trash <path>`
-  (recuperable en `~/.local/share/Trash/files/`).
+- Nada de `rm` sobre datos. Usar el equivalente recuperable: `gio trash <path>`
+  (recuperable en `~/.local/share/Trash/files/`). Excepción: artefactos efímeros que el
+  propio script genera en esa ejecución, como el marcador `.git/pre-push-qa-ok`, que sí
+  se pueden borrar directamente.
 - Nunca commits con secrets o tokens. `.env` + `.gitignore`.
 - No publicar en redes sin confirmación explícita.
 - No contactar clientes ni terceros sin confirmación.

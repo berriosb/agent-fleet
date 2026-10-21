@@ -1,24 +1,20 @@
 ---
 name: fleet-conventions
-description: "Reglas universales de Bastián: línea roja, idioma, verificación, borrado y entregables. Generado desde el vault; aplicar en TODO trabajo, sin importar el agente o el lenguaje."
-version: 1.0.0
-author: Bastián Berrios (generado desde Agent-Shared/conventions.md)
+description: "Reglas universales de Bastián: línea roja, idioma, verificación, borrado y entregables. Curado a mano desde el vault; aplicar en TODO trabajo, sin importar el agente o el lenguaje."
 license: MIT
-platforms: [linux, macos]
 metadata:
-  hermes:
-    tags: [fleet, convenciones, reglas, red-lines, espanol, verificacion]
-    generated_from: "Agent-Shared/conventions.md"
-    synced: 2026-10-07
-    regenerate: "python3 scripts/sync-conventions.py"
+  generated: true
+  source: "Agent-Shared/conventions.md"
+  source_sha256: "dce182ba3ae4842eff920b4bed59b2e681ac816afd32aa8ac4526a67ddeadc79"
+  regenerate: "python3 scripts/sync-conventions.py"
 ---
 
 # fleet-conventions
 
 
 > **Este archivo es GENERADO.** La fuente de verdad es
-> `/home/bastianberrios/Proyectos/AI/memorias-bastian/Agent-Shared/conventions.md` en el vault. Para cambiar una regla: editá el vault, después corré
-> `python3 scripts/sync-conventions.py` y commiteá. Editar este archivo a mano se pierde
+> `Agent-Shared/conventions.md` en el vault. Para cambiar una regla: edita el vault, después corre
+> `python3 scripts/sync-conventions.py` y commitea. Editar este archivo a mano se pierde
 > en el próximo sync.
 
 Estas reglas aplican a **todo agente** que trabaje con Bastián: Hermes (aura, codehak,

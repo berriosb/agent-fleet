@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-sync-conventions.py — regenera skills/fleet-conventions/SKILL.md desde el vault.
+sync-conventions.py — regenera skills/fleet-conventions/references/vault-conventions.md
+desde el vault.
 
 Por qué existe
 ──────────────
@@ -9,11 +10,27 @@ Por qué existe
 vault, para agentes que no abren el vault.
 
 `SKILL.md` NO se regenera: es una skill curada a mano, y el vault todavía no cubre todo lo
-que el fleet necesita (la regla CJK y `gio trash` viven en `lessons-learned.md` y en la
-memoria del perfil, no en `conventions.md`). Regenerarlo perdería esas reglas.
+que el fleet necesita (la regla CJK y el borrado recuperable viven en `lessons-learned.md` y
+en la memoria del perfil, no en `conventions.md`). Regenerarlo perdería esas reglas.
 
 Por eso el sync es de una sola dirección y escribe en `references/`: el vault se proyecta
 sin sobrescribir la curation. `SKILL.md` enlaza a la referencia para el detalle literal.
+
+Render determinista
+───────────────────
+El archivo generado se compara byte a byte contra el vault, así que el render NO puede
+contener valores volátiles (la fecha del día, la ruta local absoluta). Todo lo que cambia
+cuando cambia el vault está en `metadata.hermes.source_sha256`; mientras el vault no cambie,
+el sha no cambia y el archivo tampoco.
+
+Por eso el `name` y la `description` se COPIAN del `SKILL.md` curado: hay una sola fuente
+de verdad para el frontmatter y no puede derivar. `scripts/check-skills.py` lo verifica.
+
+Multi-fuente
+────────────
+El vault se puede leer desde el disco local y/o desde el mirror remoto. Si ambos son
+alcanzables pero dicen cosas distintas, el mirror está desactualizado: se reporta como
+conflicto explícito en vez de fallar en silencio.
 
 Uso
 ───
@@ -26,15 +43,16 @@ Depende de: python3 stdlib. Sin dependencias externas.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import re
 import sys
 import urllib.error
 import urllib.request
-from datetime import date
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+CURATED = REPO / "skills" / "fleet-conventions" / "SKILL.md"
 TARGET = REPO / "skills" / "fleet-conventions" / "references" / "vault-conventions.md"
 
 VAULT_REL = "Agent-Shared/conventions.md"
@@ -43,6 +61,10 @@ VAULT_PATHS = [
     Path("/home/bastianberrios/Proyectos/AI/memorias-bastian") / VAULT_REL,
 ]
 VAULT_URL = f"https://raw.githubusercontent.com/berriosb/memorias-bastian/main/{VAULT_REL}"
+
+# Etiqueta estable para el texto generado. NUNCA la ruta local absoluta: el archivo se
+# commitea y se comparte, y una ruta de una máquina no pertenece ahí.
+VAULT_LABEL = VAULT_REL
 
 # --------------------------------------------------------------------------------------
 # Mapeo: heading del vault -> sección de fleet-conventions
@@ -53,8 +75,8 @@ VAULT_URL = f"https://raw.githubusercontent.com/berriosb/memorias-bastian/main/{
 # --------------------------------------------------------------------------------------
 
 SCOPE_NOTE = """> **Este archivo es GENERADO.** La fuente de verdad es
-> `{vault}` en el vault. Para cambiar una regla: editá el vault, después corré
-> `python3 scripts/sync-conventions.py` y commiteá. Editar este archivo a mano se pierde
+> `{vault}` en el vault. Para cambiar una regla: edita el vault, después corre
+> `python3 scripts/sync-conventions.py` y commitea. Editar este archivo a mano se pierde
 > en el próximo sync.
 
 Estas reglas aplican a **todo agente** que trabaje con Bastián: Hermes (aura, codehak,
@@ -62,12 +84,52 @@ mingo), Claude Code, Codex, OpenCode, agy, Gemini CLI, copilot, pi, mcode. No de
 lenguaje ni del proyecto.
 """
 
+# Fallback si el SKILL.md curado no está disponible. `check-skills.py` verifica que el
+# archivo generado y el curado mantienen el mismo name + description.
+FALLBACK_NAME = "fleet-conventions"
+FALLBACK_DESCRIPTION = (
+    "Reglas universales de Bastián: línea roja, idioma, verificación, borrado y entregables. "
+    "Curado a mano desde el vault; aplicar en TODO trabajo, sin importar el agente o el lenguaje."
+)
 
-def read_vault() -> tuple[str | None, str | None]:
-    """Devuelve (markdown, error). Intenta archivo local, luego la URL con token opcional."""
+
+def sha256(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def read_curated_frontmatter() -> tuple[str, str]:
+    """Lee (name, description) del SKILL.md curado. Fuente unica del frontmatter."""
+    if not CURATED.is_file():
+        return FALLBACK_NAME, FALLBACK_DESCRIPTION
+    content = CURATED.read_text(encoding="utf-8")
+    m = re.match(r"^---\n(.*?)\n---", content, re.DOTALL)
+    if not m:
+        return FALLBACK_NAME, FALLBACK_DESCRIPTION
+    fm = m.group(1)
+    name = re.search(r"^name:\s*(.+)$", fm, re.M)
+    desc = re.search(r"^description:\s*(.+)$", fm, re.M)
+    name_val = name.group(1).strip().strip("\"'") if name else FALLBACK_NAME
+    desc_val = desc.group(1).strip().strip("\"'") if desc else FALLBACK_DESCRIPTION
+    return name_val, desc_val
+
+
+def read_sources() -> list[tuple[str, str | None, str | None]]:
+    """
+    Devuelve [(etiqueta, contenido_o_None, error_o_None)] para cada fuente alcanzable.
+
+    Todas las fuentes alcanzables se leen, no solo la primera: si el disco y el mirror
+    difieren, esa diferencia es un hallazgo y se reporta.
+    """
+    sources: list[tuple[str, str | None, str | None]] = []
+
     for path in VAULT_PATHS:
         if path.is_file():
-            return path.read_text(encoding="utf-8"), None
+            try:
+                sources.append((str(path), path.read_text(encoding="utf-8"), None))
+            except OSError as exc:
+                sources.append((str(path), None, str(exc)))
+            break
+
     try:
         headers = {}
         token = os.environ.get("VAULT_TOKEN") or os.environ.get("GH_TOKEN")
@@ -75,9 +137,11 @@ def read_vault() -> tuple[str | None, str | None]:
             headers["Authorization"] = f"token {token}"
         req = urllib.request.Request(VAULT_URL, headers=headers)
         with urllib.request.urlopen(req, timeout=15) as response:
-            return response.read().decode("utf-8"), None
-    except (urllib.error.URLError, TimeoutError) as exc:
-        return None, str(exc)
+            sources.append((VAULT_URL, response.read().decode("utf-8"), None))
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        sources.append((VAULT_URL, None, str(exc)))
+
+    return sources
 
 
 def extract_sections(markdown: str) -> list[tuple[str, list[str]]]:
@@ -105,28 +169,25 @@ def extract_sections(markdown: str) -> list[tuple[str, list[str]]]:
     return sections
 
 
-def render(sections: list[tuple[str, list[str]]], vault_label: str) -> str:
-    """Construye el SKILL.md completo."""
+def render(sections: list[tuple[str, list[str]]], source_sha: str) -> str:
+    """Construye el archivo de referencia completo."""
+    name, description = read_curated_frontmatter()
     frontmatter = f"""---
-name: fleet-conventions
-description: "Reglas universales de Bastián: línea roja, idioma, verificación, borrado y entregables. Generado desde el vault; aplicar en TODO trabajo, sin importar el agente o el lenguaje."
-version: 1.0.0
-author: Bastián Berrios (generado desde Agent-Shared/conventions.md)
+name: {name}
+description: "{description}"
 license: MIT
-platforms: [linux, macos]
 metadata:
-  hermes:
-    tags: [fleet, convenciones, reglas, red-lines, espanol, verificacion]
-    generated_from: "{VAULT_REL}"
-    synced: {date.today().isoformat()}
-    regenerate: "python3 scripts/sync-conventions.py"
+  generated: true
+  source: "{VAULT_REL}"
+  source_sha256: "{source_sha}"
+  regenerate: "python3 scripts/sync-conventions.py"
 ---
 
 # fleet-conventions
 
 """
 
-    parts = [frontmatter, SCOPE_NOTE.format(vault=vault_label), ""]
+    parts = [frontmatter, SCOPE_NOTE.format(vault=VAULT_LABEL), ""]
 
     for title, lines in sections:
         body = "\n".join(lines).strip("\n")
@@ -137,7 +198,8 @@ metadata:
     text = "\n".join(parts).rstrip("\n") + "\n"
 
     # Nunca reescribir con glifos CJK: si el vault trajera uno, abortar en vez de propagar.
-    cjk = re.findall(r"[一-鿿]", text)
+    # El rango va en escapes: los glifos literales en el fuente serian CJK ellos mismos.
+    cjk = re.findall(r"[\u4e00-\u9fff]", text)
     if cjk:
         sys.exit(f"[sync] abortado: {len(cjk)} glifos CJK en el contenido sincronizado")
     return text
@@ -152,39 +214,61 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    markdown, err = read_vault()
-    if markdown is None:
+    sources = read_sources()
+    available = [(label, content) for label, content, _ in sources if content is not None]
+
+    if not available:
+        errors = "; ".join(f"{label}: {err}" for label, _, err in sources if err)
         if args.check and TARGET.is_file():
             print(
-                f"[sync] AVISO: vault no accesible ({err}). Se omite comparación remota y se preserva {TARGET.relative_to(REPO)}."
+                f"[sync] AVISO: vault no accesible ({errors}). "
+                f"Se omite la comparación y se preserva {TARGET.relative_to(REPO)}."
             )
             return 0
-        sys.exit(f"[sync] no se pudo leer el vault: {err}")
+        sys.exit(f"[sync] no se pudo leer el vault: {errors}")
 
-    sections = extract_sections(markdown)
-    if not sections:
-        sys.exit("[sync] no se encontraron secciones `## ` en el vault")
+    renders: dict[str, str] = {}
+    for label, content in available:
+        sections = extract_sections(content)
+        if not sections:
+            sys.exit(f"[sync] no se encontraron secciones `## ` en {label}")
+        renders[label] = render(sections, sha256(content))
 
-    label = f"`{VAULT_REL}`"
-    for path in VAULT_PATHS:
-        if path.is_file():
-            label = str(path)
-            break
-    rendered = render(sections, label)
+    # Conflicto entre fuentes: el disco y el mirror dicen cosas distintas.
+    if len(renders) > 1 and len(set(renders.values())) > 1:
+        print(
+            "[sync] CONFLICTO: el vault local y el mirror remoto proyectan contenido "
+            "distinto. El mirror está desactualizado o divergió.",
+            file=sys.stderr,
+        )
+        for label in renders:
+            print(f"    - {label}", file=sys.stderr)
+        if args.check:
+            return 1
 
     if args.check:
         current = TARGET.read_text(encoding="utf-8") if TARGET.is_file() else ""
-        if current == rendered:
-            print(f"[sync] OK — {len(sections)} secciones, sin cambios")
-            return 0
-        print(f"[sync] DESACTUALIZADO — {TARGET.relative_to(REPO)} difiere del vault")
-        return 1
+        mismatched = [label for label, rendered in renders.items() if rendered != current]
+        if mismatched:
+            print(
+                f"[sync] DESACTUALIZADO — {TARGET.relative_to(REPO)} difiere del vault: "
+                + ", ".join(mismatched)
+            )
+            return 1
+        print(f"[sync] OK — {len(renders)} fuente(s) verificadas, sin cambios")
+        return 0
 
-    TARGET.parent.mkdir(parents=True, exist_ok=True)
+    # Escritura: la fuente de verdad es el disco local; el mirror es respaldo.
+    preferred = next(
+        (label for label, _, _ in sources if label in VAULT_PATHS and label in renders),
+        next(iter(renders)),
+    )
+    rendered = renders[preferred]
     changed = not TARGET.is_file() or TARGET.read_text(encoding="utf-8") != rendered
+    TARGET.parent.mkdir(parents=True, exist_ok=True)
     TARGET.write_text(rendered, encoding="utf-8")
-    print(f"[sync] {len(sections)} secciones desde el vault → {TARGET.relative_to(REPO)}")
-    print("[sync] sin cambios" if not changed else "[sync] escrito")
+    print(f"[sync] {len(renders)} fuente(s) leída(s) desde {preferred}")
+    print("[sync] sin cambios" if not changed else f"[sync] escrito → {TARGET.relative_to(REPO)}")
     return 0
 
 
