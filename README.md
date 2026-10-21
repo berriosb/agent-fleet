@@ -236,6 +236,27 @@ El hook bloquea cualquier push en la terminal a menos que exista un marcador vá
 el HEAD actual, o uses `git push --no-verify` de forma consciente. El marcador se consume
 al pushear, así no se reusan aprobaciones viejas.
 
+### Fallos que ya existían (baseline)
+
+Un repo puede tener tests que ya fallaban antes de que nadie tocara nada. Bloquear el push
+por eso deja al repo sin poder pushear nunca. El **baseline** es un archivo en la raíz del
+repo (`pre-push-qa-baseline.txt`) con los tests que ya se sabe que fallan: solo los fallos
+*fuera* de esa lista bloquean.
+
+```bash
+# Genera el baseline con los tests que fallan ahora mismo
+pre-push-qa --update-baseline      # o: bash skills/pre-push-qa/scripts/run.sh --update-baseline
+
+git add pre-push-qa-baseline.txt && git commit -m "chore(qa): baseline de fallos conocidos"
+```
+
+El archivo va commiteado a propósito: es la lista de fallos que el proyecto decide tolerar, y
+tiene que ser visible en el PR que la agrega. Cuando la suite falla, el gate reporta
+`baseline-failures exist; new failures: <lista>`.
+
+Si el runner no logra identificar qué tests fallaron, **bloquea**: el gate nunca se debilita
+porque no entendió la salida de un runner.
+
 ## Cómo se mantiene `fleet-conventions`
 
 La fuente de verdad es `Agent-Shared/conventions.md` en el vault Obsidian, no este repo.
@@ -334,7 +355,6 @@ y falla si no llega. Espera, y no falla al primer intento, porque el workflow `r
 paralelo: si el release falla, el tag no llega y el job falla al expirar la espera.
 
 ## Qué NO hace este repo
-
 - **El camino local no pide API keys ni secrets remotos.** Todo es local y gratis. El
   workflow reusabe de CI (`qa.yml`) sí puede usar un LLM para el review y el auto-fix:
   es opt-in y se activa con un secret del repo.
@@ -348,7 +368,7 @@ paralelo: si el release falla, el tag no llega y el job falla al expirar la espe
 
 ## Roadmap
 
-- [ ] Tests baseline-aware (no romper si el test ya fallaba antes del diff)
+- [x] Tests baseline-aware (no romper si el test ya fallaba antes del diff)
 - [x] Detección ampliada de stacks (Go `go test ./...`, Rust `cargo check && cargo test`)
 - [ ] `to-spec` / `to-tickets` / `code-review` cuando haya issue tracker configurado
 

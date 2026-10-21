@@ -48,6 +48,16 @@ El repo es un quality gate para agentes, y el gate no hacía lo que prometía.
 - **Las rutas absolutas de una máquina estaban en un repo público.** Salieron las tres.
 - **El tooling de QA no estaba declarado**, así que la CI corría `mypy` y el local no.
   Ahora `requirements-dev.txt` es la única declaración.
+- **Go y Rust no se chequeaban.** Un repo Go caía en `mixed` y no se le corría nada.
+  Ahora `go vet`/`go test` y `cargo check`/`cargo test`.
+- **La instalación no cubría los cuatro roots.** `npx skills add -g` deja las skills solo
+  en `~/.agents/skills/`: Claude Code, Codex y Gemini leen roots propios y quedaban
+  fuera. Peor: el resultado no era lo que `check-install.py` exige, así que el repo se
+  declaraba roto después de una instalación "correcta". Ahora hay `scripts/install.sh`.
+- **Los tests que ya fallaban bloqueaban el push para siempre.** La skill lo prometía
+  ("report them as baseline-failures... rather than blocking") y el runner no lo
+  hacía. Ahora hay un baseline: un archivo con los tests que el proyecto decide
+  tolerar. Solo los fallos nuevos bloquean.
 
 ## 2026-10-20 — La infraestructura de verificación
 

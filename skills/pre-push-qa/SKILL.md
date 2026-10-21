@@ -106,6 +106,14 @@ The runner takes two flags:
 |---|---|
 | `--detect` | Prints the detected stack and exits. Used by the CI to pick setup steps without keeping a second copy of the detection logic. |
 | `--scope all\|static\|tests` | Runs the whole gate (default), only lint/types/build, or only tests. The CI uses the last two to split the work across two jobs. A scoped run does not write the verification marker: a partial run does not approve a push. |
+| `--update-baseline` | Writes the currently failing tests to the repo's baseline file, so that pre-existing failures stop blocking pushes. |
+
+**Baseline.** A repo can have tests that were already failing before anyone
+touched anything. Blocking the push for that leaves the repo unable to push at
+all. The baseline file (`pre-push-qa-baseline.txt`, in the repo root) lists the
+tests that are already known to fail: only failures *outside* that list block.
+It is meant to be committed — it is the list of failures the project decides to
+tolerate, and it has to be visible in the PR that adds it.
 
 The TypeScript check runs only when the project has a `tsconfig.json` **and**
 `typescript` is installed. There is no `--if-present` flag for `tsc`: that flag
@@ -380,8 +388,14 @@ agy -p "test that you can see the pre-push-qa skill by listing skills" 2>&1 | he
 - **Do NOT post the AI review to the PR without user approval** — a draft PR review
   in chat is fine; posting it to GitHub creates noise.
 - **A failing gate is a FINDING, not a bug** — when the user's repo has pre-existing
-  test failures (per memory, `optimacx-reclamos` has 17% failing), report them as
-  "baseline-failures exist; new failures: <list>" rather than blocking.
+  test failures (per memory, `optimacx-reclamos` has 17% failing), they must not
+  block the push. The **baseline file** is what makes that possible: it lists the
+  tests already known to fail, and only failures *outside* that list block. The
+  runner reports `baseline-failures exist; new failures: <list>`.
+  Generate it with `run.sh --update-baseline` and commit it: it is the list of
+  failures the project decides to tolerate, so it has to be visible in the PR
+  that adds it. If the runner cannot identify which tests failed, it blocks:
+  the gate never gets weaker because it did not understand the output.
 - **Lockfile mismatch after migration (Ubuntu→Arch, etc.)** — if `pnpm install` fails
   with `Cannot find module 'eslint/.../formatters/stylish'`, the right move is the
   bypass: `CI=1 pnpm install --config.confirmModulesPurge=false`. Don't try `npm install`.

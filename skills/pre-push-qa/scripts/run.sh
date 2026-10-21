@@ -19,6 +19,16 @@ cd "$REPO_ROOT"
 # pasos de setup correr, sin tener su propia deteccion.
 SCOPE="all"
 DETECT_ONLY=0
+UPDATE_BASELINE=0
+
+# Baseline de fallos conocidos: archivo en la raiz del repo con los tests que ya
+# se sabia que fallan. Lo que no esta ahi, bloquea el push.
+BASELINE_FILE="$REPO_ROOT/pre-push-qa-baseline.txt"
+
+# Log de la suite: hace falta entero para extraer el set de tests que fallaron.
+QA_WORK="$(mktemp -d)"
+QA_LOG="$QA_WORK/test.log"
+trap 'rm -rf "$QA_WORK"' EXIT
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -34,13 +44,17 @@ while [ $# -gt 0 ]; do
       DETECT_ONLY=1
       shift
       ;;
+    --update-baseline)
+      UPDATE_BASELINE=1
+      shift
+      ;;
     -h|--help)
-      echo "usage: run.sh [--scope all|static|tests] [--detect]"
+      echo "usage: run.sh [--scope all|static|tests] [--detect] [--update-baseline]"
       exit 0
       ;;
     *)
       echo "==> [pre-push-qa] ERROR: argumento desconocido '$1'" >&2
-      echo "    usage: run.sh [--scope all|static|tests] [--detect]" >&2
+      echo "    usage: run.sh [--scope all|static|tests] [--detect] [--update-baseline]" >&2
       exit 2
       ;;
   esac
@@ -53,6 +67,12 @@ case "$SCOPE" in
     exit 2
     ;;
 esac
+
+# Regenerar el baseline implica correr la suite, asi que el scope no puede ser
+# solo el estatico.
+if [ "$UPDATE_BASELINE" -eq 1 ] && [ "$SCOPE" = "static" ]; then
+  SCOPE="all"
+fi
 
 echo "==> [pre-push-qa] Detecting repository stack..."
 
@@ -142,30 +162,127 @@ run_check() {
   "$@" || STATUS=$?
 }
 
-run_test_check() {
-  # Igual que run_check, pero limita la salida a las ultimas 30 lineas. El
-  # pipe conserva el exit code gracias a `set -o pipefail` (linea 3): sin eso,
-  # un test fallido devuelve el codigo de `tail` y el gate lo aprueba.
+run_tests() {
+  # Etiqueta + comando. Corre la suite y decide si los fallos bloquean.
+  #
+  # Un repo puede tener tests que ya fallaban antes de que nadie tocara nada.
+  # Bloquear el push por eso deja al repo sin poder pushear nunca. El baseline
+  # es un archivo con los tests que ya se sabia que fallan: lo que no esta ahi,
+  # bloquea.
+  #
+  # La salida se captura entera (no solo las ultimas lineas) porque hace falta
+  # el set de tests que fallaron, no el ultimo error.
   local label="$1"; shift
-  echo "--> ${label}"
-  "$@" 2>&1 | tail -30 || STATUS=$?
-}
+  local log="$QA_LOG" rc=0 failures="" known="" new=""
 
-run_pytest() {
+  echo "--> ${label}"
+  "$@" > "$log" 2>&1 || rc=$?
+  tail -30 "$log"
+
+  if [ "$rc" -eq 0 ]; then
+    return 0
+  fi
+
   # pytest sale con codigo 5 cuando no recolecta ningun test. Si el repo no
   # tiene archivos de test, eso no es un fallo del proyecto: es un proyecto sin
   # suite todavia, y el gate no debe bloquearlo. Si el repo SI tiene tests y
   # pytest no recolecta ninguno, el problema es real y se propaga.
-  local label="$1"; shift
-  local rc
-  echo "--> ${label}"
-  "$@" 2>&1 | tail -30
-  rc=${PIPESTATUS[0]}
   if [ "$rc" -eq 5 ] && ! repo_has_tests; then
     echo "--> (no test files in repo — skipped)"
-    rc=0
+    return 0
   fi
+
+  if ! failures="$(extract_failures "$log")" || [ -z "$failures" ]; then
+    # Sin el set de fallos no hay baseline posible. Se bloquea: el gate nunca
+    # se debilita por no entender la salida de un runner.
+    echo "==> [pre-push-qa] La suite fallo y no se pudieron identificar los tests que fallaron." >&2
+    echo "    Se bloquea el push: sin el set de fallos no hay baseline posible." >&2
+    return "$rc"
+  fi
+
+  if [ "$UPDATE_BASELINE" -eq 1 ]; then
+    write_baseline "$failures"
+    echo "==> [pre-push-qa] baseline escrito: $(printf '%s\n' "$failures" | wc -l) test(s) conocido(s)."
+    return 0
+  fi
+
+  if [ ! -f "$BASELINE_FILE" ]; then
+    echo "==> [pre-push-qa] La suite fallo ($(printf '%s\n' "$failures" | wc -l) test(s)) y no hay baseline de fallos conocidos." >&2
+    echo "    Genera el baseline con: run.sh --update-baseline" >&2
+    printf '%s\n' "$failures" | sed 's/^/      /' >&2
+    return "$rc"
+  fi
+
+  known="$(grep -vE '^\s*(#|$)' "$BASELINE_FILE" | sort -u)"
+  new="$(comm -23 <(printf '%s\n' "$failures") <(printf '%s\n' "$known"))"
+
+  if [ -z "$new" ]; then
+    echo "==> [pre-push-qa] baseline-failures exist; new failures: none"
+    printf '%s\n' "$failures" | sed 's/^/      /'
+    return 0
+  fi
+
+  echo "==> [pre-push-qa] baseline-failures exist; new failures:" >&2
+  printf '%s\n' "$new" | sed 's/^/      /' >&2
   return "$rc"
+}
+
+extract_failures() {
+  # Extrae el set de tests que fallaron del log de la suite: una linea por
+  # test. Devuelve 1 si no reconoce el formato, y el gate bloquea en ese caso.
+  local log="$1"
+
+  # pytest: "FAILED tests/test_x.py::test_y - motivo"
+  if grep -qE '^(FAILED|ERROR) ' "$log"; then
+    grep -E '^(FAILED|ERROR) ' "$log" | sed -E 's/^(FAILED|ERROR) ([^ ]+).*/\1 \2/' | sort -u
+    return 0
+  fi
+  # go test: "--- FAIL: TestName (0.00s)"
+  if grep -qE '^ *--- FAIL: ' "$log"; then
+    grep -E '^ *--- FAIL: ' "$log" | sed -E 's/^ *--- FAIL: ([^ ]+).*/\1/' | sort -u
+    return 0
+  fi
+  # unittest: "FAIL: test_name (modulo.Clase)"
+  if grep -qE '^(FAIL|ERROR): ' "$log"; then
+    grep -E '^(FAIL|ERROR): ' "$log" | sed -E 's/^(FAIL|ERROR): ([^ ]+).*/\1 \2/' | sort -u
+    return 0
+  fi
+  # vitest: "FAIL  src/x.test.ts > suite > test"
+  if grep -qE '^ *FAIL +[^ ]' "$log"; then
+    grep -E '^ *FAIL +' "$log" | sed -E 's/^ *FAIL +//; s/[[:space:]]+$//' | sort -u
+    return 0
+  fi
+  # jest: "● suite > test"
+  if grep -qE '^ *● ' "$log"; then
+    grep -E '^ *● ' "$log" | sed -E 's/^ *● +//; s/[[:space:]]+$//' | sort -u
+    return 0
+  fi
+  # cargo test: bloque "failures:" con la lista
+  if grep -qE '^failures:$' "$log"; then
+    awk '/^failures:$/{f=1;next} /^test result:/{f=0} f && NF' "$log" \
+      | sed -E 's/^[[:space:]]+//; s/[[:space:]].*$//' | sort -u
+    return 0
+  fi
+  # node:test: "not ok 1 - nombre"
+  if grep -qE '^not ok ' "$log"; then
+    grep -E '^not ok ' "$log" | sed -E 's/^not ok [0-9]+ - //' | sort -u
+    return 0
+  fi
+
+  return 1
+}
+
+write_baseline() {
+  local failures="$1"
+  {
+    echo "# Fallos conocidos de la suite. Generado con: run.sh --update-baseline"
+    echo "# Un test por linea. Los fallos que NO esten aca bloquean el push."
+    echo "#"
+    echo "# Este archivo va commiteado: es la lista de fallos que el proyecto decide"
+    echo "# tolerar, y tiene que ser visible en el PR que los agrega."
+    echo
+    printf '%s\n' "$failures"
+  } > "$BASELINE_FILE"
 }
 
 typecheck() {
@@ -280,9 +397,9 @@ case "$STACK" in
 
     if want_tests; then
       if py_has pytest; then
-        run_pytest "Running python tests (pytest)..." py_run pytest -q --tb=line || STATUS=$?
+        run_tests "Running python tests (pytest)..." py_run pytest -q --tb=line || STATUS=$?
       elif [ "$PY_MANIFEST" -eq 0 ] && command -v python3 >/dev/null 2>&1 && { [ -d tests ] || [ -d test ]; }; then
-        run_test_check "Running python tests (unittest)..." python3 -m unittest discover -s .
+        run_tests "Running python tests (unittest)..." python3 -m unittest discover -s . || STATUS=$?
       else
         echo "--> Skipping python tests (pytest not available)."
       fi
@@ -312,10 +429,10 @@ case "$STACK" in
     fi
     if want_tests; then
       if command -v pytest >/dev/null 2>&1; then
-        run_pytest "Running pytest..." pytest -q --tb=line || STATUS=$?
+        run_tests "Running pytest..." pytest -q --tb=line || STATUS=$?
         local_found=1
       elif command -v python3 >/dev/null 2>&1 && { [ -d "tests" ] || [ -d "test" ]; }; then
-        run_test_check "Running unittest..." python3 -m unittest discover -s .
+        run_tests "Running unittest..." python3 -m unittest discover -s . || STATUS=$?
         local_found=1
       fi
     fi
@@ -335,7 +452,7 @@ case "$STACK" in
         fi
       fi
       if want_tests && has_script test; then
-        run_test_check "Running pnpm tests..." env CI=true pnpm test
+        run_tests "Running pnpm tests..." env CI=true pnpm test || STATUS=$?
       fi
     else
       echo "==> [pre-push-qa] ERROR: 'pnpm' is required for this stack but not installed or not in PATH." >&2
@@ -354,7 +471,7 @@ case "$STACK" in
         fi
       fi
       if want_tests && has_script test; then
-        run_test_check "Running npm tests..." env CI=true npm test
+        run_tests "Running npm tests..." env CI=true npm test || STATUS=$?
       fi
     else
       echo "==> [pre-push-qa] ERROR: 'npm' is required for this stack but not installed or not in PATH." >&2
@@ -373,7 +490,7 @@ case "$STACK" in
         fi
       fi
       if want_tests && has_script test; then
-        run_test_check "Running yarn tests..." env CI=true yarn test
+        run_tests "Running yarn tests..." env CI=true yarn test || STATUS=$?
       fi
     else
       echo "==> [pre-push-qa] ERROR: 'yarn' is required for this stack but not installed or not in PATH." >&2
@@ -392,7 +509,7 @@ case "$STACK" in
         fi
       fi
       if want_tests && has_script test; then
-        run_test_check "Running bun tests..." env CI=true bun test
+        run_tests "Running bun tests..." env CI=true bun test || STATUS=$?
       fi
     else
       echo "==> [pre-push-qa] ERROR: 'bun' is required for this stack but not installed or not in PATH." >&2
@@ -405,7 +522,7 @@ case "$STACK" in
         run_check "Running go vet..." go vet ./...
       fi
       if want_tests; then
-        run_test_check "Running go tests..." go test ./...
+        run_tests "Running go tests..." go test ./... || STATUS=$?
       fi
     else
       echo "==> [pre-push-qa] ERROR: 'go' is required for this stack but not installed or not in PATH." >&2
@@ -418,7 +535,7 @@ case "$STACK" in
         run_check "Running cargo check..." cargo check --all-targets
       fi
       if want_tests; then
-        run_test_check "Running cargo tests..." cargo test
+        run_tests "Running cargo tests..." cargo test || STATUS=$?
       fi
     else
       echo "==> [pre-push-qa] ERROR: 'cargo' is required for this stack but not installed or not in PATH." >&2
@@ -446,7 +563,7 @@ case "$STACK" in
   mixed|*)
     echo "--> Mixed or unknown stack — running best-effort checks..."
     if want_tests && has_script test && command -v npm >/dev/null 2>&1; then
-      run_test_check "Running npm tests..." env CI=true npm test
+      run_tests "Running npm tests..." env CI=true npm test || STATUS=$?
     fi
     if want_static && command -v shellcheck >/dev/null 2>&1; then
       if find . -maxdepth 3 -name "*.sh" -not -path "*/.*" -print -quit | grep -q .; then

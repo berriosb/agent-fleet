@@ -174,6 +174,49 @@ for pair in "$GO_REPO:go" "$CARGO_REPO:cargo"; do
   fi
 done
 
+if command -v pytest >/dev/null 2>&1; then
+  echo "    gate: los fallos preexistentes no bloquean, los nuevos si..."
+  # Fixture: un repo Python con un test que falla, y lint limpio para que lo
+  # que se prova sea el baseline y no otra cosa.
+  BL_REPO="$WORK/blrepo"
+  mkdir -p "$BL_REPO"
+  (
+    cd "$BL_REPO"
+    git init -q
+    printf 'def test_roto():\n    value = 1\n    assert value == 2\n' > test_algo.py
+    git add -A
+    git -c user.email=t@t -c user.name=t commit -qm init
+  )
+
+  # 1. Sin baseline, un test roto bloquea.
+  if ( cd "$BL_REPO" && bash "$RUNNER" --scope tests >/dev/null 2>&1 ); then
+    echo "    ERROR: el gate aprobo un test roto sin baseline" >&2
+    FAILED=1
+  else
+    echo "    OK: sin baseline, el test roto bloquea"
+  fi
+
+  # 2. Con el baseline que lo incluye, el mismo fallo no bloquea.
+  ( cd "$BL_REPO" && bash "$RUNNER" --scope tests --update-baseline >/dev/null 2>&1 ) || true
+  if ( cd "$BL_REPO" && bash "$RUNNER" --scope tests >/dev/null 2>&1 ); then
+    echo "    OK: con el baseline, el fallo preexistente no bloquea"
+  else
+    echo "    ERROR: el gate bloqueo un fallo que estaba en el baseline" >&2
+    FAILED=1
+  fi
+
+  # 3. Con un baseline que NO lo incluye, el fallo vuelve a bloquear.
+  printf '# baseline\n\nFAILED test_algo.py::test_otro\n' > "$BL_REPO/pre-push-qa-baseline.txt"
+  if ( cd "$BL_REPO" && bash "$RUNNER" --scope tests >/dev/null 2>&1 ); then
+    echo "    ERROR: el gate aprobo un fallo nuevo con baseline" >&2
+    FAILED=1
+  else
+    echo "    OK: un fallo nuevo bloquea aunque haya baseline"
+  fi
+else
+  echo "    SKIP: pytest no esta en esta maquina; los casos de baseline no se prueban"
+fi
+
 echo "    runner: un scope parcial no escribe el marcador..."
 MARKER="$PY_REPO/.git/pre-push-qa-ok"
 rm -f "$MARKER"
