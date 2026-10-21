@@ -88,5 +88,32 @@ class TestSha256(ScriptTestCase):
         )
 
 
+class TestSanitizeLocalPaths(ScriptTestCase):
+    script = "sync-conventions.py"
+
+    def test_reemplaza_la_ruta_local_del_vault(self):
+        local = str(self.module.VAULT_ROOTS[0])
+        limpio = self.module.sanitize_local_paths(f"- **Ruta:** `{local}/`\n")
+        self.assertNotIn(local, limpio)
+        self.assertIn("Agent-Shared/", limpio)
+
+    def test_no_toca_lo_que_no_es_una_ruta(self):
+        texto = "nada que ver aca\n"
+        self.assertEqual(self.module.sanitize_local_paths(texto), texto)
+
+    def test_el_render_no_trae_rutas_locales(self):
+        curated = self.root / "SKILL.md"
+        curated.write_text(
+            '---\nname: fleet-conventions\ndescription: "Una descripcion larga."\n'
+            "license: MIT\nversion: 1.0.0\n---\n",
+            encoding="utf-8",
+        )
+        self.module.CURATED = curated
+        local = str(self.module.VAULT_ROOTS[0])
+        text = self.module.render([("Uno", [f"- **Ruta:** `{local}/`"])], "sha-de-prueba")
+        self.assertNotIn(local, text)
+        self.assertNotIn("/home/", text)
+
+
 if __name__ == "__main__":
     unittest.main()

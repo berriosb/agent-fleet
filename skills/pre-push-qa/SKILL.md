@@ -33,7 +33,7 @@ they happen to be installed; this skill works standalone):
 `pre-push-qa` can also be run globally from any terminal when symlinked to `~/.local/bin/pre-push-qa`:
 ```bash
 mkdir -p ~/.local/bin
-ln -sf /home/bastianberrios/Proyectos/agent-fleet/skills/pre-push-qa/scripts/run.sh ~/.local/bin/pre-push-qa
+ln -sf "$HOME/Proyectos/agent-fleet/skills/pre-push-qa/scripts/run.sh" ~/.local/bin/pre-push-qa
 ```
 Running `pre-push-qa` in any terminal runs stack detection, linters, tests, security checks, and creates the verification marker.
 

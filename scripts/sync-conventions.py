@@ -58,9 +58,15 @@ TARGET = REPO / "skills" / "fleet-conventions" / "references" / "vault-conventio
 VAULT_REL = "Agent-Shared/conventions.md"
 VAULT_PATHS = [
     Path.home() / "Proyectos" / "AI" / "memorias-bastian" / VAULT_REL,
-    Path("/home/bastianberrios/Proyectos/AI/memorias-bastian") / VAULT_REL,
 ]
 VAULT_URL = f"https://raw.githubusercontent.com/berriosb/memorias-bastian/main/{VAULT_REL}"
+
+# Raices del vault en disco. El texto del vault menciona su propia ruta local,
+# y esa ruta no puede viajar dentro de un archivo que se commitea y se comparte.
+# El render la reemplaza por la etiqueta relativa.
+VAULT_ROOTS = [
+    Path.home() / "Proyectos" / "AI" / "memorias-bastian",
+]
 
 # Etiqueta estable para el texto generado. NUNCA la ruta local absoluta: el archivo se
 # commitea y se comparte, y una ruta de una máquina no pertenece ahí.
@@ -169,6 +175,18 @@ def extract_sections(markdown: str) -> list[tuple[str, list[str]]]:
     return sections
 
 
+def sanitize_local_paths(text: str) -> str:
+    """Reemplaza las rutas locales del vault por la etiqueta relativa.
+
+    Las convenciones del vault mencionan donde vive el vault. Ese archivo se
+    commitea y se comparte, y una ruta de una maquina no pertenece ahi. El
+    render promises que no lleva rutas locales: esto es lo que lo cumple.
+    """
+    for root in VAULT_ROOTS:
+        text = text.replace(str(root), VAULT_REL.rsplit("/", 1)[0])
+    return text
+
+
 def render(sections: list[tuple[str, list[str]]], source_sha: str) -> str:
     """Construye el archivo de referencia completo."""
     name, description = read_curated_frontmatter()
@@ -196,6 +214,7 @@ metadata:
         parts.append(f"## {title}\n\n{body}\n")
 
     text = "\n".join(parts).rstrip("\n") + "\n"
+    text = sanitize_local_paths(text)
 
     # Nunca reescribir con glifos CJK: si el vault trajera uno, abortar en vez de propagar.
     # El rango va en escapes: los glifos literales en el fuente serian CJK ellos mismos.

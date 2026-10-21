@@ -24,7 +24,7 @@ lenguaje ni del proyecto.
 
 ## Vault Obsidian
 
-- **Ruta:** `/home/bastianberrios/Proyectos/AI/memorias-bastian/`
+- **Ruta:** `Agent-Shared/`
 - **Es repo git.** Commitea al final de sesión con mensaje descriptivo en español.
 - **Wikilinks** `[[nombre-nota]]` para links internos (NO `[texto](ruta)`).
 - **Frontmatter YAML** al crear notas nuevas (al menos `title`, `date`, `tags`).
