@@ -246,11 +246,18 @@ case "$STACK" in
     }
 
     py_has() {
-      # Con uv, la herramienta se resuelve desde el entorno del proyecto.
+      # Una herramienta que NO esta no es un fallo del proyecto: es un chequeo
+      # que el proyecto nunca pidio. Se prueba antes de correrla.
+      #
+      # Con uv, `uv run <tool>` cae al PATH y, si tampoco esta ahi, responde
+      # "Failed to spawn" con codigo 2. Eso se confundia con "el typecheck
+      # fallo" y bloqueaba el push de un repo que no declara mypy: el mismo
+      # repo pasaba en una maquina con mypy y fallaba en otra sin el.
       if [ "$PY_UV" -eq 1 ]; then
-        return 0
+        uv run "$1" --version >/dev/null 2>&1
+      else
+        command -v "$1" >/dev/null 2>&1
       fi
-      command -v "$1" >/dev/null 2>&1
     }
 
     if want_static; then
@@ -277,11 +284,12 @@ case "$STACK" in
       fi
     fi
 
-    # Con manifiesto y sin ninguna herramienta: el gate no puede ejecutarse.
+    # Sin herramientas disponibles no hay nada que verificar. Se reporta como
+    # omitido, nunca como fallo: el gate no puede bloquear un push por tooling
+    # que el proyecto no declaro.
     if want_static && [ "$PY_MANIFEST" -eq 1 ] && [ "$PY_UV" -eq 0 ]; then
       if ! command -v ruff >/dev/null 2>&1 && ! command -v mypy >/dev/null 2>&1 && ! command -v pytest >/dev/null 2>&1; then
-        echo "==> [pre-push-qa] ERROR: Python stack detected, but neither 'uv' nor python QA tools found in PATH." >&2
-        STATUS=1
+        echo "--> Skipping python checks: no QA tools (ruff, mypy, pytest) found in PATH."
       fi
     fi
     ;;
@@ -308,9 +316,7 @@ case "$STACK" in
       fi
     fi
     if [ "$local_found" -eq 0 ]; then
-      echo "==> [pre-push-qa] WARNING: pip stack detected, but no linter/test tools (ruff, mypy, pytest) found in PATH." >&2
-      echo "    Install ruff/pytest or use uv to enable checks." >&2
-      STATUS=1
+      echo "--> Skipping python checks: no linter/test tools (ruff, mypy, pytest) found in PATH."
     fi
     ;;
   pnpm)

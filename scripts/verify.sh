@@ -15,7 +15,8 @@
 #   1. El vault proyecta igual a references/vault-conventions.md
 #   2. Frontmatter, CJK, fences, flags replicados y consistencia de la cadena
 #   3. El hook de push acepta, consume y bloquea como debe
-#   4. El runner de pre-push-qa pasa sobre el repo
+#   4. El runner omite lo que no tiene, bloquea lo que falla y reparte por scope
+#   5. El runner de pre-push-qa pasa sobre el repo
 #
 # Uso:
 #   ./scripts/verify.sh              # solo el repo: hermetico
@@ -46,16 +47,19 @@ for arg in "$@"; do
   esac
 done
 
-echo "==> [verify] 1/4 Sincronización de convenciones con el vault..."
+echo "==> [verify] 1/5 Sincronización de convenciones con el vault..."
 python3 scripts/sync-conventions.py --check
 
-echo "==> [verify] 2/4 Frontmatter, CJK, fences y consistencia de la cadena..."
+echo "==> [verify] 2/5 Frontmatter, CJK, fences y consistencia de la cadena..."
 python3 scripts/check-skills.py
 
-echo "==> [verify] 3/4 Round-trip del hook de push..."
+echo "==> [verify] 3/5 Round-trip del hook de push..."
 bash scripts/verify-hook.sh
 
-echo "==> [verify] 4/4 Runner de pre-push-qa sobre el repo..."
+echo "==> [verify] 4/5 Round-trip del runner de pre-push-qa..."
+bash scripts/verify-runner.sh
+
+echo "==> [verify] 5/5 Runner de pre-push-qa sobre el repo..."
 ./skills/pre-push-qa/scripts/run.sh
 
 if [ "$WITH_INSTALL" -eq 1 ]; then
