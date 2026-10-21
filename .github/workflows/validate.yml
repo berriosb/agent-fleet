@@ -133,7 +133,7 @@ jobs:
           python-version: '3.12'
       - uses: astral-sh/setup-uv@v3
       - name: Instalar herramientas de Python
-        run: pip install --quiet ruff mypy pytest
+        run: pip install --quiet -r requirements-dev.txt
       - name: Round-trip del runner
         run: bash scripts/verify-runner.sh
       - name: Correr el gate sobre el repo

@@ -1,0 +1,15 @@
+# Herramientas de QA de este repo.
+#
+# Esta es la unica declaracion: la CI la instala con
+# `pip install -r requirements-dev.txt` y en local con
+# `scripts/install-dev-tools.sh`.
+#
+# No hay pyproject.toml a proposito: un manifiesto cambiaria la deteccion de
+# stack del runner (lo detectaria como proyecto uv, que usa `uv run` contra un
+# entorno) y este repo son scripts sueltos con stdlib.
+#
+# El typecheck local depende de que mypy este instalado: sin el, el runner lo
+# reporta como omitido y solo la CI lo corre.
+ruff
+mypy
+pytest

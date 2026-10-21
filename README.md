@@ -34,7 +34,9 @@ mcode, y cualquier otro cliente del [estándar Agent Skills](https://agentskills
 | `scripts/verify-hook.sh` | Round-trip del gate: el hook acepta, consume y bloquea como debe. |
 | `scripts/verify-runner.sh` | Round-trip del runner: omite lo que no tiene, bloquea lo que falla, reparte por scope. |
 | `scripts/verify.sh` | Verificación del repo. Hermética: es lo que corre la CI. `--install` suma el estado de tu máquina. |
+| `scripts/install-dev-tools.sh` | Instala `ruff`, `mypy` y `pytest` desde `requirements-dev.txt`. La CI lee el mismo archivo. |
 | `scripts/release.sh` | Mueve el tag `v1` (que es la release) al HEAD. Con `--push` lo publica. |
+| `requirements-dev.txt` | Las herramientas de QA del repo. Es la única declaración: la leen la CI y el local. |
 | `upstream/ATTRIBUTION.md` | De dónde viene cada skill y bajo qué licencia. |
 
 ## El flujo que encadenan
@@ -244,6 +246,13 @@ La verificación del repo es **hermética**: da el mismo resultado en un clone l
 tu máquina, y por eso es la que corre la CI. El estado de tu instalación (las skills
 enlazadas en `~/.agents`, `~/.claude`, `~/.codex`, `~/.gemini`) es otra cosa: se
 comprueba aparte con `python3 scripts/check-install.py`.
+
+El typecheck local (`mypy`) solo corre si está instalado. Para que local y CI
+apliquen los mismos criterios:
+
+```bash
+./scripts/install-dev-tools.sh    # ruff, mypy y pytest, desde requirements-dev.txt
+```
 
 ## Qué cambia para los repos que usan el workflow
 
