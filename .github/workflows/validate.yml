@@ -166,16 +166,19 @@ jobs:
         shell: bash
         run: |
           set -eo pipefail
+          # El tag se compara con el ref local `v1`: `git fetch --tags` deja
+          # los tags en refs/tags/, no en refs/remotes/origin/. Con `origin/v1`
+          # la comparacion no resuelve y el job espera sin poder pasar nunca.
           for _ in $(seq 1 30); do
             git fetch origin --tags --force -q
-            if git rev-parse -q --verify origin/v1 >/dev/null 2>&1 \
-              && git diff --quiet origin/v1 HEAD -- skills/pre-push-qa .github/workflows/qa.yml 2>/dev/null; then
-              echo "OK: el tag v1 contiene el runner actual ($(git rev-parse --short origin/v1))."
+            if git rev-parse -q --verify v1 >/dev/null 2>&1 \
+              && git diff --quiet v1 HEAD -- skills/pre-push-qa .github/workflows/qa.yml 2>/dev/null; then
+              echo "OK: el tag v1 contiene el runner actual ($(git rev-parse --short v1))."
               exit 0
             fi
             sleep 10
           done
           echo "ERROR: el tag v1 no alcanzo el runner actual en 5 minutos." >&2
           echo "  Revisa el workflow 'release' de este run." >&2
-          git diff --stat origin/v1 HEAD -- skills/pre-push-qa .github/workflows/qa.yml >&2 || true
+          git diff --stat v1 HEAD -- skills/pre-push-qa .github/workflows/qa.yml >&2 || true
           exit 1
