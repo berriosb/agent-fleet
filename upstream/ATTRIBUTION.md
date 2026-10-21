@@ -14,13 +14,13 @@ licencia de su origen. Los avisos exigidos por Apache-2.0 están en `NOTICE`.
 
 | Skill | Origen | Licencia | Cambios |
 |---|---|---|---|
-| `pre-push-qa` | Propio (historial migrado desde `berriosb/pre-push-qa`) | MIT | developing |
-| `verification-before-completion` | [`obra/superpowers`](https://github.com/obra/superpowers) `skills/verification-before-completion` | MIT | Copy literal. Sin cambios. |
-| `systematic-debugging` | [`obra/superpowers`](https://github.com/obra/superpowers) `skills/systematic-debugging` | MIT | Incluye guías de soporte (`root-cause-tracing.md`, `defense-in-depth.md`, `condition-based-waiting.md`). Adaptada para eliminar prefijos `superpowers:*`. |
-| `domain-modeling` | [`mattpocock/skills`](https://github.com/mattpocock/skills) `skills/engineering/domain-modeling` | MIT | Incluye plantillas `GLOSSARY-FORMAT.md` y `ADR-FORMAT.md`. |
-| `fleet-interview` | [`mattpocock/skills`](https://github.com/mattpocock/skills) `skills/productivity/grilling` | MIT | Renombrada de `grilling` (directorio y `name` en frontmatter) para no colisionar con el original upstream. Ver nota abajo. |
-| `work-unit-commits` | [`Gentleman-Programming/gentle-ai`](https://github.com/Gentleman-Programming/gentle-ai) `skills/work-unit-commits` | Apache-2.0 | Copy literal. Sin cambios. |
-| `cognitive-doc-design` | [`Gentleman-Programming/gentle-ai`](https://github.com/Gentleman-Programming/gentle-ai) `skills/cognitive-doc-design` | Apache-2.0 | Copy literal. Sin cambios. |
+| `pre-push-qa` | Propio (historial migrado desde `berriosb/pre-push-qa`) | MIT | developing. Ver "Auditoría 2026-10-20". |
+| `verification-before-completion` | [`obra/superpowers`](https://github.com/obra/superpowers) `skills/verification-before-completion` | MIT | Frontmatter normalizado (se agrega `license` y `version`). Se agrega la seccion "En la cadena" con la fase. Cuerpo sin cambios. |
+| `systematic-debugging` | [`obra/superpowers`](https://github.com/obra/superpowers) `skills/systematic-debugging` | MIT | Incluye guías de soporte (`root-cause-tracing.md`, `defense-in-depth.md`, `condition-based-waiting.md`). Adaptada para eliminar prefijos `superpowers:*`. Frontmatter normalizado (se agrega `version`). Se agrega la seccion "En la cadena" con la fase. |
+| `domain-modeling` | [`mattpocock/skills`](https://github.com/mattpocock/skills) `skills/engineering/domain-modeling` | MIT | Incluye plantillas `GLOSSARY-FORMAT.md` y `ADR-FORMAT.md`. Frontmatter normalizado (se agrega `license` y `version`). Se agrega la seccion "En la cadena" con la fase. |
+| `fleet-interview` | [`mattpocock/skills`](https://github.com/mattpocock/skills) `skills/productivity/grilling` | MIT | Renombrada de `grilling` (directorio y `name` en frontmatter) para no colisionar con el original upstream. Description reescrita para que el trigger coincida con `AGENTS.md`. Frontmatter normalizado (se agrega `license` y `version`). Se agrega la seccion "En la cadena" con la fase. Ver nota abajo. |
+| `work-unit-commits` | [`Gentleman-Programming/gentle-ai`](https://github.com/Gentleman-Programming/gentle-ai) `skills/work-unit-commits` | Apache-2.0 | Sección "ODD Relationship" reemplazada por "Evidence and Thresholds": se elimina el vocabulario de un framework ajeno (ODD) y se conservan las reglas exigibles. Frontmatter normalizado (`version` pasa de `metadata` a campo de primer nivel). Se agrega la seccion "En la cadena" con las fases. |
+| `cognitive-doc-design` | [`Gentleman-Programming/gentle-ai`](https://github.com/Gentleman-Programming/gentle-ai) `skills/cognitive-doc-design` | Apache-2.0 | Frontmatter normalizado (`version` pasa de `metadata` a campo de primer nivel). Se agrega la seccion "En la cadena" con las fases. Cuerpo sin cambios. |
 
 ### Por qué `grilling` → `fleet-interview`
 
@@ -30,6 +30,59 @@ instalar `npx skills add mattpocock/skills` más adelante no deje dos skills con
 compitiendo en el mismo agente.
 
 Si preferís el nombre original, renombrá el directorio y el campo `name` del frontmatter.
+
+## Auditoría 2026-10-20
+
+Cambios aplicados sobre las nueve skills. Se registran acá porque la regla 1 del repo
+exige que toda edicion a una skill derivada de upstream quede anotada con su licencia.
+
+### Frontmatter
+
+Todos los `SKILL.md` quedan con el mismo esquema minimo: `name`, `description`, `license`,
+`version`. Antes havia tres generaciones distintas y tres skills sin `license`, que es
+justo el campo que la licencia exige conservar. `scripts/check-skills.py` lo verifica.
+
+### Contenido duplicado que habia derivado
+
+| Que estaba duplicado | Como se resolvio |
+|---|---|
+| El prompt de review estaba en `SKILL.md` (Step 3), en `prompts/review.md` y en un fallback dentro de `review-call.js`, con tres textos distintos | `prompts/review.md` es la fuente de verdad. `SKILL.md` lo referencia. El fallback del JS ahora falla con un error claro en vez de enviar un prompt improvisado |
+| El prompt de auto-fix estaba en `SKILL.md` (Step 4, en prosa) y en `prompts/auto-fix.md` (con el contrato JSON) | Mismo criterio: `prompts/auto-fix.md` manda, `SKILL.md` lo referencia |
+| La deteccion de stack estaba en la tabla de `SKILL.md` y en un bloque bash que era una copia de `scripts/run.sh`, ya divergida | `scripts/run.sh` es la unica implementacion. `SKILL.md` Step 1 documenta que corre; Step 2 lo invoca |
+| La regex de `.env` estaba en `run.sh`, en `examples/pre-push.sh` y en `SKILL.md`, con dos patrones | Un solo patron canonico, verificado en los tres lugares por `scripts/check-skills.py` |
+
+### Correcciones de contenido
+
+- `fleet-conventions`: la description decia "Generado desde el vault" cuando la skill es
+  curada a mano. Ahora dice "Curado a mano desde el vault".
+- `fleet-interview`: la description disparaba solo ante "grill", en conflicto con
+  `AGENTS.md`, que la pide "antes de implementar algo no trivial". Ahora cubre ambos
+  triggers.
+- `session-handoff`: el bloque de codigo del template estaba truncado al renderizar: el
+  fence anidado de bash cerraba antes el fence contenedor de markdown, y las secciones 4 y
+  5 quedaban fuera de la plantilla. Corregido con un fence externo de 4 backticks.
+- `work-unit-commits`: eliminada la jerga del framework ODD. Se conserva lo exigible
+  (umbral de 400 lineas, evidencia de tests, limite de rollback).
+- `pre-push-qa`: `metadata.related` apuntaba a skills que no viven en este repo; ahora
+  esa seccion aclara que son opcionales y externas. El bloque de instalacion usaba
+  `rm -rf`, contrario a la linea roja del repo: ahora usa `gio trash`.
+
+### El orden de las skills
+
+Se creo `skills/fleet-conventions/CHAIN.md` como fuente de verdad del orden, por fases.
+A cada `SKILL.md` se le agrego una seccion "En la cadena" con su fase, y
+`scripts/check-skills.py` verifica que CHAIN.md y los `SKILL.md` no se contradigan.
+
+El orden anterior vivia solo en un diagrama de README que ningun agente lee en runtime.
+Ademas estaba mal: `systematic-debugging` figuraba despues de `pre-push-qa` (pero un
+bug de logica aparece durante la implementacion, y el gate solo ve lint, tipos y tests),
+`cognitive-doc-design` figuraba despues de `session-handoff` (el cuerpo de un PR se
+escribe antes del push) y `fleet-conventions` y `domain-modeling` no aparecian.
+
+### Lo que no se toco
+
+- `cognitive-doc-design` y `verification-before-completion`: el cuerpo queda intacto.
+- La cadena de skills (que skill sigue a cual) no cambia: sigue siendo la del `README.md`.
 
 ## Licencias upstream completas
 

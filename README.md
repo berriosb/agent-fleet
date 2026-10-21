@@ -19,6 +19,7 @@ mcode, y cualquier otro cliente del [estándar Agent Skills](https://agentskills
 | Ruta | Qué es |
 |---|---|
 | `skills/fleet-conventions/` | Las reglas que aplican a todo agente: verificación, idioma, datos, borrado, entregables. |
+| `skills/fleet-conventions/CHAIN.md` | El orden canónico de las skills, por fases. Fuente de verdad del encadenado. |
 | `skills/pre-push-qa/` | Compuerta de calidad antes del push. Detecta el stack y corre lint + tests. |
 | `skills/fleet-interview/` | Interroga el árbol de decisiones antes de implementar. |
 | `skills/work-unit-commits/` | Un commit = un comportamiento entregable. Tests y docs con su código. |
@@ -27,24 +28,53 @@ mcode, y cualquier otro cliente del [estándar Agent Skills](https://agentskills
 | `skills/session-handoff/` | Cierre estructurado y traspaso de contexto en disco antes de compactar o rotar agentes. |
 | `skills/domain-modeling/` | Glosario y ADRs: el vocabulario compartido del proyecto. |
 | `skills/cognitive-doc-design/` | Docs que un revisor puede verificar sin reconstruir la historia. |
-| `scripts/sync-conventions.py` | Proyecta `conventions.md` del vault a `references/`. |
+| `scripts/sync-conventions.py` | Proyecta `conventions.md` del vault a `references/`. Render determinista: sin fecha ni rutas locales. |
+| `scripts/check-skills.py` | Frontmatter, glifos CJK, fences de código y patrones duplicados. Solo stdlib. |
+| `scripts/check-install.py` | Detecta skills sin enlazar y copias divergentes en los perfiles de Hermes. |
+| `scripts/verify-hook.sh` | Round-trip del gate: el hook acepta, consume y bloquea como debe. |
 | `upstream/ATTRIBUTION.md` | De dónde viene cada skill y bajo qué licencia. |
 
 ## El flujo que encadenan
 
+El orden canónico está en
+[`skills/fleet-conventions/CHAIN.md`](skills/fleet-conventions/CHAIN.md). No es una lista
+lineal: hay fases transversales, condicionales y repetibles.
+
 ```
-fleet-interview   ← ¿qué quieres realmente? decisiones resueltas antes de código
-      ↓
-work-unit-commits ← ¿qué va en cada commit? un comportamiento por commit
-      ↓
-pre-push-qa       ← ¿está sano? lint + types + tests, local, sin secrets
-      ↓ (si falla: systematic-debugging ← causa raíz antes de parchar)
-verification-before-completion  ← ¿terminó? evidencia fresca, no afirmaciones
-      ↓
-session-handoff   ← ¿cierras sesión o traspasas? estado persistido en disco
-      ↓
-cognitive-doc-design           ← ¿se entiende? docs que un revisor puede chequear
+Fase 0  fleet-conventions            ← reglas universales, se cargan una vez y rigen todo
+          ↓
+Fase 1  fleet-interview              ← ¿qué quieres realmente? decisiones resueltas antes de código
+        domain-modeling              ← el vocabulario que cristalizó, por escrito
+        work-unit-commits             ← el trabajo partido en commits antes de implementar
+          ↓
+Fase 2  systematic-debugging         ← bug o comportamiento inesperado, cuando aparece
+        cognitive-doc-design         ← docs, READMEs, notas de arquitectura
+          ↓
+Fase 3  verification-before-completion ← ¿terminó? evidencia fresca, no afirmaciones
+        pre-push-qa (chequeos)       ← ¿está sano? lint + types + tests, local, sin secrets
+          ↓
+Fase 4  work-unit-commits            ← ¿qué va en este commit? un comportamiento por commit
+          ↓  git commit
+Fase 5  pre-push-qa (marcador)       ← el marcador se genera DESPUÉS del commit
+        cognitive-doc-design         ← el cuerpo del PR
+          ↓  git push
+Fase 6  session-handoff              ← ¿cierras sesión o traspasas? estado persistido en disco
 ```
+
+Tres reglas que el diagrama no puede mostrar:
+
+- **`verification-before-completion` es una puerta, no un paso.** Se dispara en cada
+  afirmación de éxito: antes de commitear, antes de cambiar de tarea, antes de delegar.
+- **`pre-push-qa` tiene dos momentos.** Los chequeos están en la fase 3; el **marcador**
+  está en la fase 5 y se genera **después** del commit, porque el hook compara el hash del
+  marcador contra el HEAD que se está pusheando. Si el QA corre antes del commit, el push
+  se bloquea con `STALE MARKER ERROR`.
+- **`systematic-debugging` no espera al push.** El gate solo ve lint, tipos y tests: un bug
+  de lógica nunca llega ahí.
+
+Cada skill declara su fase en su propia sección "En la cadena", y
+`scripts/check-skills.py` verifica que CHAIN.md y los `SKILL.md` no se contradigan. El
+orden no vive solo en este README.
 
 Ninguna es obligatoria por sí sola. La cadena es el valor: juntas cambian *cuándo* se
 detecta un error, no solo si se detecta.
@@ -131,13 +161,17 @@ Contenido mínimo:
 ```markdown
 ## agent-fleet (aplica a TODO trabajo)
 
-1. `fleet-conventions` — reglas universales. Leer antes de empezar.
-2. Antes de implementar algo no trivial: `fleet-interview`.
-3. Ante cualquier bug o fallo de tests: `systematic-debugging`.
-4. Antes de cada commit: `work-unit-commits`.
-5. Antes de cada push: `pre-push-qa`.
-6. Antes de declarar algo terminado: `verification-before-completion`.
-7. Al cerrar sesión o compactar contexto: `session-handoff`.
+Orden completo en `skills/fleet-conventions/CHAIN.md`.
+
+1. `fleet-conventions` — reglas universales. Leer antes de empezar. (fase 0)
+2. Antes de implementar algo no trivial: `fleet-interview`. (fase 1)
+3. Al cambiar el vocabulario o escribir un ADR: `domain-modeling`. (fase 1)
+4. Ante cualquier bug o fallo de tests: `systematic-debugging`. (fase 2)
+5. Al escribir docs o el cuerpo de un PR: `cognitive-doc-design`. (fase 2)
+6. Antes de declarar algo terminado o de commitear: `verification-before-completion`. (fase 3)
+7. Antes de cada commit: `work-unit-commits`. (fase 4)
+8. Antes de cada push: `pre-push-qa`. (fase 5)
+9. Al cerrar sesión o compactar contexto: `session-handoff`. (fase 6)
 ```
 
 ## Cómo funciona el gate de `pre-push-qa`
@@ -180,13 +214,19 @@ python3 scripts/sync-conventions.py            # actualizar
 python3 scripts/sync-conventions.py --check    # solo comparar (exit 1 si difiere)
 ```
 
-Para cambiar una regla: **editá el vault**, corré el sync, commiteá. Editar el `SKILL.md`
+El render es determinista: no lleva fecha ni rutas locales, así que el `--check` da el
+mismo resultado hoy y dentro de un mes. La única fuente del `name` y la `description` del
+archivo generado es el `SKILL.md` curado, así que no pueden divergir.
+
+Para cambiar una regla: **edita el vault**, corré el sync, commiteá. Editar el `SKILL.md`
 a mano es correcto para lo que el vault no cubre todavía, pero ese texto no se regenera
 nunca.
 
 ## Qué NO hace este repo
 
-- **No pide API keys ni secrets remotos.** Todo es local y gratis.
+- **El camino local no pide API keys ni secrets remotos.** Todo es local y gratis. El
+  workflow reusabe de CI (`qa.yml`) sí puede usar un LLM para el review y el auto-fix:
+  es opt-in y se activa con un secret del repo.
 - **No toca la CI de tus repos.** Cada repo mantiene sus propios workflows.
 - **No enforce `--force` ni `--no-verify`.** El hook es opcional y desactivable a propósito.
 - **No hace secret scanning.** Complemento recomendado: `push-gate` (Gitleaks).
