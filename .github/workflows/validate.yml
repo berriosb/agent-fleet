@@ -32,6 +32,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pyyaml
+        run: pip install --quiet pyyaml
       - name: YAML parse all files and skills frontmatter
         shell: bash
         run: |
@@ -44,26 +49,11 @@ jobs:
                   yaml.safe_load(open(f))
               except Exception as e:
                   bad.append((f, str(e)))
-
-          skills = glob.glob('skills/**/SKILL.md', recursive=True)
-          for s in skills:
-              content = open(s).read()
-              m = re.match(r'^---\n(.*?)\n---', content, re.DOTALL)
-              if not m:
-                  bad.append((s, 'Missing YAML frontmatter'))
-                  continue
-              try:
-                  data = yaml.safe_load(m.group(1))
-                  if not isinstance(data, dict) or 'name' not in data:
-                      bad.append((s, \"Frontmatter missing 'name' field\"))
-              except Exception as e:
-                  bad.append((s, f'Frontmatter YAML parse error: {e}'))
-
           if bad:
               for f, e in bad:
                   print(f'BAD: {f}: {e}', file=sys.stderr)
               sys.exit(1)
-          print(f'all {len(files)} YAML files and {len(skills)} skills frontmatter OK')
+          print(f'all {len(files)} YAML files OK')
           "
 
   # 3. js-syntax — node --check on every script
@@ -94,30 +84,38 @@ jobs:
         run: |
           python3 scripts/sync-conventions.py --check
 
-  # 5. cjk-integrity — ensure 0 CJK glyphs in docs and skills
-  cjk-integrity:
-    name: cjk-integrity
+  # 5. skills-integrity — frontmatter, CJK, fences, patrones duplicados.
+  #    Usa el mismo script que scripts/verify.sh: local y CI aplican los mismos
+  #    criterios, sin dos implementaciones que puedan divergir.
+  skills-integrity:
+    name: skills-integrity
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Check CJK glyphs
-        shell: bash
-        run: |
-          python3 -c "
-          import glob, sys, re
-          files = glob.glob('skills/**/*', recursive=True) + glob.glob('*.md')
-          bad = []
-          for f in files:
-              try:
-                  with open(f, 'r', encoding='utf-8') as fp:
-                      m = re.findall(r'[\u4e00-\u9fff]', fp.read())
-                      if m:
-                          bad.append((f, len(m)))
-              except Exception:
-                  pass
-          if bad:
-              for f, c in bad:
-                  print(f'ERROR: {f} contains {c} CJK glyphs', file=sys.stderr)
-              sys.exit(1)
-          print('CJK check passed: 0 CJK glyphs found.')
-          "
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validar skills
+        run: python3 scripts/check-skills.py
+
+  # 6. gate-roundtrip — el hook de push acepta, consume y bloquea como debe.
+  gate-roundtrip:
+    name: gate-roundtrip
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Round-trip del hook de pre-push
+        run: bash scripts/verify-hook.sh
+
+  # 7. install-drift — sin directorios de agente en CI: sale con 0. Falla si el
+  #    script deja de tolerar la ausencia de ~/.agents, ~/.claude, etc.
+  install-drift:
+    name: install-drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verificar estado de instalación
+        run: python3 scripts/check-install.py
