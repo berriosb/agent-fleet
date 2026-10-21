@@ -317,5 +317,23 @@ class TestReadmeListsSkills(ScriptTestCase):
         self.assertEqual(errors, [])
 
 
+class TestCoverageConsistency(ScriptTestCase):
+    script = "check-skills.py"
+
+    def test_cjk_y_fences_miran_el_mismo_conjunto(self):
+        self.use_root()
+        # Un archivo con las dos fallas: los dos chequeos tienen que reportarlo.
+        # Antes uno miraba los trackeados y el otro todo el directorio.
+        (self.root / "a.md").write_text(
+            "texto \u6b63\u5e38\n```python\nsin cerrar\n", encoding="utf-8"
+        )
+        cjk_errors: list[str] = []
+        self.module.check_cjk(cjk_errors)
+        fence_errors: list[str] = []
+        self.module.check_fences(fence_errors)
+        self.assertTrue(any("glifos CJK" in e for e in cjk_errors))
+        self.assertTrue(any("nunca se cierra" in e for e in fence_errors))
+
+
 if __name__ == "__main__":
     unittest.main()

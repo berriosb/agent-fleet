@@ -263,17 +263,44 @@ def check_reference_drift(errors: list[str]) -> None:
             )
 
 
-def check_cjk(errors: list[str]) -> None:
+def repo_files() -> list[str]:
+    """Archivos que importan: los commiteados mas los nuevos sin trackear.
+
+    `git ls-files --cached --others --exclude-standard` da exactamente eso: lo
+    que esta en el indice, mas lo que se sumaria al proximo commit, sin los
+    archivos ignorados. Es el conjunto que tiene que estar limpio, porque un
+    `.md` recien escrito todavia no esta commiteado y su regla es que se
+    chequee antes de entregarlo.
+
+    Los dos chequeos de texto (CJK y fences) usan esta misma lista. Antes uno
+    miraba los trackeados y el otro todo el directorio, y por eso un archivo
+    sin trackear rompia fences pero no CJK.
+    """
     try:
-        tracked = subprocess.run(
-            ["git", "ls-files", "-z"],
-            cwd=REPO, capture_output=True, text=True, check=True,
+        listed = subprocess.run(
+            [
+                "git",
+                "ls-files",
+                "-z",
+                "--cached",
+                "--others",
+                "--exclude-standard",
+            ],
+            cwd=REPO,
+            capture_output=True,
+            text=True,
+            check=True,
         ).stdout.split("\0")
     except (subprocess.CalledProcessError, FileNotFoundError):
-        tracked = [str(p.relative_to(REPO)) for p in REPO.rglob("*") if p.is_file()]
+        listed = [str(p.relative_to(REPO)) for p in REPO.rglob("*") if p.is_file()]
+    return [rel for rel in filter(None, listed)]
+
+
+def check_cjk(errors: list[str]) -> None:
+    tracked = repo_files()
 
     checked = 0
-    for rel in filter(None, tracked):
+    for rel in tracked:
         path = REPO / rel
         if not path.is_file():
             continue
@@ -303,10 +330,12 @@ def check_fences(errors: list[str]) -> None:
       plantilla. Es el modo de falla que costo las secciones 4 y 5 de session-handoff;
     - un fence interno mas corto que el externo es contenido legitimo (ejemplo anidado).
     """
-    for path in sorted(REPO.rglob("*.md")):
-        if ".git" in path.parts:
+    for rel in repo_files():
+        if not rel.endswith(".md"):
             continue
-        rel = path.relative_to(REPO)
+        path = REPO / rel
+        if not path.is_file():
+            continue
         open_len = 0
         open_line = 0
         open_lang = ""
