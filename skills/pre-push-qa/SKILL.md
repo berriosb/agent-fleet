@@ -85,6 +85,7 @@ implementation: do not reimplement the detection inline, because a second copy d
 | `package-lock.json` | npm | `npm ci`, lint, `tsc --noEmit`, tests, build |
 | `uv.lock` / `pyproject.toml` | python | `ruff`, `mypy`, `pytest` via `uv run` |
 | `requirements.txt` / `setup.py` | pip | `ruff`, `mypy`, `pytest` (or `unittest` when pytest is absent) |
+| `*.py` with no manifest at all | python | `ruff`, `mypy`, `pytest` from `PATH`; each one is skipped when the tool is not installed |
 | `package.json` (no lockfile) | npm | install, lint, `tsc --noEmit`, tests, build |
 | `*.tf` | terraform | `terraform fmt -check -recursive` |
 | `Dockerfile` / `docker-compose.*` | docker | `hadolint Dockerfile` |
@@ -96,6 +97,19 @@ If none match: `mixed` — the runner does a best-effort pass (npm tests when a
 **Always skip lint/test if the diff only touches:** `*.md`, `*.mdx`, `docs/**`,
 `.github/ISSUE_TEMPLATE/**`, `assets/**`, `*.lock` (unless manifest-affecting),
 `*.svg`, `*.png`.
+
+The runner takes two flags:
+
+| Flag | What it does |
+|---|---|
+| `--detect` | Prints the detected stack and exits. Used by the CI to pick setup steps without keeping a second copy of the detection logic. |
+| `--scope all\|static\|tests` | Runs the whole gate (default), only lint/types/build, or only tests. The CI uses the last two to split the work across two jobs. A scoped run does not write the verification marker: a partial run does not approve a push. |
+
+The TypeScript check runs only when the project has a `tsconfig.json` **and**
+`typescript` is installed. There is no `--if-present` flag for `tsc`: that flag
+belongs to the script runner (`pnpm run`, `npm run`), and `tsc` rejects it with
+`Unknown compiler option`, which used to fail the gate on every TypeScript
+repo.
 
 ## Step 2 — Run static + tests (the cheap, fast, free part)
 
@@ -323,6 +337,14 @@ agy -p "test that you can see the pre-push-qa skill by listing skills" 2>&1 | he
 
 - **Do NOT call `pnpm test --run`** — memory confirms pnpm 12+ rejects the `--run`
   flag. Always use `pnpm test -- --run` (the double-dash passes the flag through).
+- **Do NOT pass `--if-present` to `tsc`** — it belongs to the script runner
+  (`pnpm run`, `npm run`), not to the compiler. `tsc` exits 1 with `Unknown
+  compiler option '--if-present'`, which fails the gate on every TypeScript
+  repo. Guard the typecheck on `tsconfig.json` existing and on `typescript`
+  being installed instead.
+- **Do NOT pipe a test command without `set -o pipefail`** — `cmd | tail -40`
+  returns the exit code of `tail`, so a failing suite looks green. The runner
+  sets `pipefail`; ad-hoc commands outside it do not.
 - **Do NOT run `npm ci` in repos with a `pnpm-lock.yaml`** — lockfile dictates the
   package manager. Use pnpm.
 - **Do NOT install with `--frozen-lockfile` if the lockfile is stale** — `uv sync --frozen`
