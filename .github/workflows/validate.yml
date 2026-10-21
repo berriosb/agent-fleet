@@ -119,3 +119,20 @@ jobs:
           python-version: '3.12'
       - name: Verificar estado de instalación
         run: python3 scripts/check-install.py
+
+  # 8. runner — el gate de pre-push-qa corrido sobre este repo. Es el paso 4 de
+  #    scripts/verify.sh, y el que nunca se ejercitaba en CI: el runner es lo
+  #    que usan los repos consumidores, y un fallo suyo no lo detectaba nadie.
+  runner:
+    name: runner (pre-push-qa sobre el repo)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v3
+      - name: Instalar herramientas de Python
+        run: pip install --quiet ruff mypy pytest
+      - name: Correr el gate sobre el repo
+        run: ./skills/pre-push-qa/scripts/run.sh

@@ -29,9 +29,10 @@ mcode, y cualquier otro cliente del [estándar Agent Skills](https://agentskills
 | `skills/domain-modeling/` | Glosario y ADRs: el vocabulario compartido del proyecto. |
 | `skills/cognitive-doc-design/` | Docs que un revisor puede verificar sin reconstruir la historia. |
 | `scripts/sync-conventions.py` | Proyecta `conventions.md` del vault a `references/`. Render determinista: sin fecha ni rutas locales. |
-| `scripts/check-skills.py` | Frontmatter, glifos CJK, fences de código y patrones duplicados. Solo stdlib. |
-| `scripts/check-install.py` | Detecta skills sin enlazar y copias divergentes en los perfiles de Hermes. |
+| `scripts/check-skills.py` | Frontmatter, glifos CJK, fences de código, flags replicados y consistencia de la cadena. Solo stdlib. |
+| `scripts/check-install.py` | Estado de **tu máquina**: skills sin enlazar y copias divergentes en los perfiles de Hermes. |
 | `scripts/verify-hook.sh` | Round-trip del gate: el hook acepta, consume y bloquea como debe. |
+| `scripts/verify.sh` | Verificación del repo. Hermética: es lo que corre la CI. `--install` suma el estado de tu máquina. |
 | `upstream/ATTRIBUTION.md` | De dónde viene cada skill y bajo qué licencia. |
 
 ## El flujo que encadenan
@@ -221,6 +222,25 @@ archivo generado es el `SKILL.md` curado, así que no pueden divergir.
 Para cambiar una regla: **edita el vault**, corré el sync, commiteá. Editar el `SKILL.md`
 a mano es correcto para lo que el vault no cubre todavía, pero ese texto no se regenera
 nunca.
+
+## Verificación del repo
+
+```bash
+./scripts/verify.sh              # el repo: hermético, es lo que corre la CI
+./scripts/verify.sh --install    # el repo + el estado de tu máquina
+```
+
+| Paso | Qué comprueba |
+|---|---|
+| `sync-conventions.py --check` | La referencia proyectada del vault está al día. |
+| `check-skills.py` | Frontmatter, glifos CJK, fences, flags de CLI replicados y que CHAIN.md y los SKILL.md no se contradigan. |
+| `verify-hook.sh` | El hook de push acepta un marcador válido, lo consume, y bloquea un marcador obsoleto o ausente. |
+| `run.sh` | El gate pasa sobre el propio repo. |
+
+La verificación del repo es **hermética**: da el mismo resultado en un clone limpio y en
+tu máquina, y por eso es la que corre la CI. El estado de tu instalación (las skills
+enlazadas en `~/.agents`, `~/.claude`, `~/.codex`, `~/.gemini`) es otra cosa: se
+comprueba aparte con `python3 scripts/check-install.py`.
 
 ## Qué NO hace este repo
 

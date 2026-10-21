@@ -61,20 +61,27 @@ npx skills add berriosb/agent-fleet -g
 ## Verificación
 
 ```bash
-# Verificación completa del repo (sync con vault, frontmatter, CJK, enlaces, gate)
+# Verificación del repo. Hermética: no depende de tu máquina. Es lo que corre la CI.
 ./scripts/verify.sh
 ```
 
-Los cinco pasos, por separado:
+Los cuatro pasos, por separado:
 
 ```bash
 python3 scripts/sync-conventions.py --check  # la referencia proyecta igual al vault
-python3 scripts/check-skills.py              # frontmatter, CJK, fences, patrones duplicados
-python3 scripts/check-install.py             # las skills están enlazadas donde se buscan
+python3 scripts/check-skills.py              # frontmatter, CJK, fences, flags, cadena
 bash scripts/verify-hook.sh                  # el hook acepta, consume y bloquea bien
+./skills/pre-push-qa/scripts/run.sh         # el gate pasa sobre el repo
 ```
 
-Los dos primeros también corren en CI (`.github/workflows/validate.yml`), contra los
+El estado de **tu máquina** (las skills enlazadas donde los agentes las buscan) es otra
+verificación, no del repo. Por eso va aparte:
+
+```bash
+python3 scripts/check-install.py             # o: ./scripts/verify.sh --install
+```
+
+Los tres primeros también corren en CI (`.github/workflows/validate.yml`), contra los
 mismos scripts: local y remoto aplican exactamente los mismos criterios.
 
 ## Instalación en la máquina
