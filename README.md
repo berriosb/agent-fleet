@@ -38,6 +38,7 @@ mcode, y cualquier otro cliente del [estándar Agent Skills](https://agentskills
 | `scripts/release.sh` | Mueve el tag `v1` (que es la release) al HEAD. Con `--push` lo publica. |
 | `requirements-dev.txt` | Las herramientas de QA del repo. Es la única declaración: la leen la CI y el local. |
 | `upstream/ATTRIBUTION.md` | De dónde viene cada skill y bajo qué licencia. |
+| `CHANGELOG.md` | Los cambios del repo, por tema. El tag `v1` se mueve en cada push, así que no hay versiones que numerar. |
 
 ## El flujo que encadenan
 
@@ -286,14 +287,24 @@ Los repos consumidores invocan este repo con
 en `ref: v1`. El tag `v1` **es** la release: si no se mueve junto con el runner, los arreglos al
 gate no llegan a los consumidores y el fallo aparece en el repo de otro.
 
+**El tag se mueve solo.** Cada push a `main` dispara el workflow `release`, que lo mueve al commit
+publicado. No hay paso manual que se pueda olvidar: el tag estuvo 13 commits atrasado sin que nada
+lo dijera, y ahora lo dice la CI.
+
+Para hacerlo a mano (por ejemplo, si la CI no está disponible):
+
 ```bash
 ./scripts/release.sh          # deja el tag v1 en HEAD, local
 ./scripts/release.sh --push   # lo publica en el remoto
 ```
 
 El script verifica que el working tree esté limpio y que el repo pase su verificación antes de
-mover nada. La CI lo vigila: el job `tag-drift` falla si `v1` no contiene el runner actual, y
-solo corre en push a `main` (en un PR el tag todavía no puede incluir el cambio).
+mover nada. El tag **solo avanza**: con dos pushes seguidos a `main`, el run que tarda más no
+puede dejarlo atrasado. Con `--force` se puede mover a propósito hacia atrás.
+
+La CI lo vigila: el job `tag-drift` de `validate.yml` espera a que el tag alcance el runner actual
+y falla si no llega. Espera, y no falla al primer intento, porque el workflow `release` corre en
+paralelo: si el release falla, el tag no llega y el job falla al expirar la espera.
 
 ## Qué NO hace este repo
 

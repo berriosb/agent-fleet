@@ -34,14 +34,17 @@ cd "$REPO_ROOT"
 
 TAG="v1"
 PUSH=0
+FORCE=0
 
 for arg in "$@"; do
   case "$arg" in
     --push) PUSH=1 ;;
+    --force) FORCE=1 ;;
     -h|--help)
-      echo "usage: release.sh [--push]"
+      echo "usage: release.sh [--push] [--force]"
       echo "  (sin flags)  deja el tag v1 en HEAD, local."
       echo "  --push       publica el tag en el remoto."
+      echo "  --force      mueve el tag aunque no sea hacia adelante."
       exit 0
       ;;
     *)
@@ -69,6 +72,14 @@ if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null 2>&1; then
   PREVIOUS="$(git rev-list -n 1 "$TAG")"
   if [ "$PREVIOUS" = "$HEAD_COMMIT" ]; then
     echo "==> [release] El tag $TAG ya apunta a $HEAD_SHORT. Nada que hacer."
+    exit 0
+  fi
+  # El tag solo avanza. Sin este guard, dos pushes seguidos a main pueden dejar
+  # el tag en el commit viejo: el run que tarda mas empuja despues y lo
+  # atrasa. Con --force se puede mover a proposito hacia atras.
+  if [ "$FORCE" -eq 0 ] && ! git merge-base --is-ancestor "$PREVIOUS" HEAD 2>/dev/null; then
+    echo "==> [release] El tag $TAG esta adelante de HEAD ($(git rev-parse --short "$PREVIOUS"))." >&2
+    echo "    No se mueve hacia atras. Con --force se fuerza." >&2
     exit 0
   fi
   echo "    $TAG: $(git rev-parse --short "$PREVIOUS") -> $HEAD_SHORT"

@@ -146,29 +146,36 @@ jobs:
   # llegan a los consumidores y el fallo aparece en otro repo, semanas
   # despues. El tag estuvo 13 commits atrasado sin que nada lo dijera.
   #
+  # El workflow `release` mueve el tag en paralelo a este. Por eso se ESPERA a
+  # que llegue en vez de fallar por la carrera: si el release fallo, el tag no
+  # llega y el job falla al expirar la espera.
+  #
   # Corre solo en push a main: en un PR el tag todavia no puede incluir el
   # cambio, asi que ahi solo seria ruido.
   tag-drift:
     name: tag-drift (v1)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           fetch-tags: true
-      - name: Verificar que el tag v1 contenga el runner actual
+      - name: Esperar a que el tag v1 alcance el runner actual
         shell: bash
         run: |
           set -eo pipefail
-          if ! git rev-parse -q --verify refs/tags/v1 >/dev/null; then
-            echo "ERROR: el tag v1 no existe." >&2
-            exit 1
-          fi
-          if ! git diff --quiet v1 HEAD -- skills/pre-push-qa .github/workflows/qa.yml; then
-            echo "ERROR: el tag v1 esta atras con el runner. Movelo con:" >&2
-            echo "  ./scripts/release.sh --push" >&2
-            git diff --stat v1 HEAD -- skills/pre-push-qa .github/workflows/qa.yml >&2
-            exit 1
-          fi
-          echo "OK: el tag v1 contiene el runner actual ($(git rev-parse --short v1))."
+          for _ in $(seq 1 30); do
+            git fetch origin --tags --force -q
+            if git rev-parse -q --verify origin/v1 >/dev/null 2>&1 \
+              && git diff --quiet origin/v1 HEAD -- skills/pre-push-qa .github/workflows/qa.yml 2>/dev/null; then
+              echo "OK: el tag v1 contiene el runner actual ($(git rev-parse --short origin/v1))."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "ERROR: el tag v1 no alcanzo el runner actual en 5 minutos." >&2
+          echo "  Revisa el workflow 'release' de este run." >&2
+          git diff --stat origin/v1 HEAD -- skills/pre-push-qa .github/workflows/qa.yml >&2 || true
+          exit 1

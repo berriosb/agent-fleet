@@ -1,0 +1,58 @@
+# release — mueve el tag v1 al commit publicado en main.
+#
+# Por que existe
+# ──────────────
+# Los repos consumidores invocan este repo asi:
+#
+#     uses: berriosb/agent-fleet/.github/workflows/qa.yml@v1
+#
+# y ese workflow hace checkout del runner en `ref: v1`. O sea: el tag v1 ES la
+# release. Si el tag no se mueve junto con el runner, la CI de los consumidores
+# sigue corriendo el runner viejo: los arreglos no llegan y el fallo aparece en
+# el repo de otro, semanas despues.
+#
+# El tag estuvo 13 commits atrasado sin que nada lo dijera. Ahora lo dice la
+# CI (job `tag-drift`) y lo mueve este workflow.
+#
+# Que hace
+# ───────
+# 1. Corre `scripts/release.sh --push`: verifica el repo, mueve el tag v1 al
+#    commit publicado y lo publica. La logica del tag vive en UN solo lugar,
+#    ese script, y el workflow lo invoca en vez de reimplementarlo.
+# 2. El tag solo avanza. Con dos pushes seguidos a main, el run que tarda mas
+#    no puede dejar el tag atrasado.
+#
+# Este workflow y el job `tag-drift` de validate.yml corren en paralelo. Por
+# eso el job de drift espera a que el tag llegue en vez de fallar por la carrera.
+name: release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+# Serializado: los runs no se pisan, y el tag avanza en orden.
+concurrency:
+  group: release-v1
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: mover el tag v1
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Identidad para el tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Mover el tag v1 al commit publicado
+        run: ./scripts/release.sh --push
