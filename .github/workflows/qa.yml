@@ -63,7 +63,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # 1. STATIC — lint + typecheck, fast and free.
+  # 1. STATIC — lint + typecheck + build, rapidos y gratis.
+  #
+  # El runner (skills/pre-push-qa/scripts/run.sh) es la UNICA implementacion del
+  # gate: la CI lo invoca en vez de reimplementar la deteccion de stack y los
+  # comandos. La copia que tenia aqui dejo de failar — todo lint terminaba en
+  # `|| true`, y los tests iban por `... | tail`, que devuelve el codigo de
+  # `tail` y no el del test. Local y remoto aplican los mismos criterios.
   static:
     name: lint + typecheck
     runs-on: ubuntu-latest
@@ -74,76 +80,92 @@ jobs:
       - name: Checkout caller code
         uses: actions/checkout@v5
 
+      - name: Checkout QA scripts
+        uses: actions/checkout@v5
+        with:
+          repository: berriosb/agent-fleet
+          ref: v1
+          path: .pre-push-qa
+          sparse-checkout: skills/pre-push-qa
+
       - name: Detect stack
         id: detect
         shell: bash
         run: |
-          set -e
+          set -eo pipefail
           if [ "${{ inputs.stack }}" != "auto" ] && [ -n "${{ inputs.stack }}" ]; then
             echo "stack=${{ inputs.stack }}" >> "$GITHUB_OUTPUT"
-          elif [ -f pnpm-lock.yaml ]; then
-            echo "stack=pnpm" >> "$GITHUB_OUTPUT"
-          elif [ -f package-lock.json ]; then
-            echo "stack=npm" >> "$GITHUB_OUTPUT"
-          elif [ -f uv.lock ] || [ -f pyproject.toml ]; then
-            echo "stack=python" >> "$GITHUB_OUTPUT"
-          elif [ -f requirements.txt ]; then
-            echo "stack=pip" >> "$GITHUB_OUTPUT"
-          elif [ -f Dockerfile ] || [ -f docker-compose.yml ] || [ -f docker-compose.yaml ]; then
-            echo "stack=docker" >> "$GITHUB_OUTPUT"
-          elif find . -maxdepth 4 -name "*.tf" -not -path "./node_modules/*" -print -quit | grep -q .; then
-            echo "stack=terraform" >> "$GITHUB_OUTPUT"
-          elif ! find . -maxdepth 4 -type f \( -name "*.js" -o -name "*.ts" -o -name "*.jsx" -o -name "*.tsx" -o -name "*.py" -o -name "*.go" -o -name "*.rs" -o -name "*.sh" -o -name "*.tf" -o -name "Dockerfile*" -o -name "*.c" -o -name "*.cpp" -o -name "*.java" -o -name "*.rb" -o -name "*.php" \) -not -path "*/.*" -not -path "*node_modules*" -not -path "*vendor*" -not -path "*.venv*" -print -quit | grep -q . && find . -maxdepth 3 -name "*.md" -not -path "./node_modules/*" -print -quit | grep -q .; then
-            echo "stack=docs" >> "$GITHUB_OUTPUT"
           else
-            echo "stack=mixed" >> "$GITHUB_OUTPUT"
+            stack=$(bash .pre-push-qa/skills/pre-push-qa/scripts/run.sh --detect)
+            echo "stack=$stack" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install hadolint
+        if: steps.detect.outputs.stack == 'docker'
+        shell: bash
+        run: |
+          if ! command -v hadolint > /dev/null; then
+            echo "Installing hadolint (Dockerfile linter)..."
+            sudo apt-get update -qq && sudo apt-get install -y -qq hadolint
           fi
 
       - name: Setup pnpm
-        if: steps.detect.outputs.stack == 'pnpm' || steps.detect.outputs.stack == 'npm' || steps.detect.outputs.stack == 'mixed'
+        if: contains(fromJSON('["pnpm","npm","yarn","bun","mixed"]'), steps.detect.outputs.stack)
         uses: pnpm/action-setup@v4
         with:
           version: 9
 
       - name: Setup Python (uv)
-        if: steps.detect.outputs.stack == 'python' || steps.detect.outputs.stack == 'mixed'
+        if: contains(fromJSON('["python","pip","mixed"]'), steps.detect.outputs.stack)
         uses: astral-sh/setup-uv@v3
 
-      - name: Run lint
+      - name: Setup Python (system)
+        if: steps.detect.outputs.stack == 'pip'
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
         shell: bash
         run: |
-          set +e
+          set -eo pipefail
           case "${{ steps.detect.outputs.stack }}" in
-            pnpm|npm)
-              pnpm install --frozen-lockfile --ignore-scripts 2>/dev/null || npm ci --ignore-scripts
-              pnpm run lint --if-present || true
-              pnpm exec tsc --noEmit --if-present || npx tsc --noEmit --if-present || true
+            pnpm)
+              pnpm install --frozen-lockfile --ignore-scripts
+              ;;
+            yarn)
+              yarn install --frozen-lockfile --ignore-scripts
+              ;;
+            bun)
+              bun install --frozen-lockfile --ignore-scripts
+              ;;
+            npm)
+              npm ci --ignore-scripts || npm install --ignore-scripts
               ;;
             python)
-              uv sync --frozen 2>/dev/null || uv sync
-              uv run ruff check . --output-format=concise || true
-              uv run mypy . --ignore-missing-imports || true
-              # Also lint Dockerfile if present (cheap insurance).
-              if [ -f Dockerfile ] && command -v hadolint > /dev/null; then hadolint Dockerfile || true; fi
+              if [ -f uv.lock ] || [ -f pyproject.toml ]; then
+                uv sync --frozen 2>/dev/null || uv sync
+              else
+                # Repo Python sin manifiesto: no hay entorno de proyecto. Se
+                # instalan las herramientas sueltas para que el gate tenga algo
+                # que correr.
+                pip install --quiet ruff mypy pytest
+              fi
               ;;
             pip)
               pip install --quiet -r requirements.txt
-              pip install --quiet ruff
-              ruff check . --output-format=concise || true
-              if [ -f Dockerfile ] && command -v hadolint > /dev/null; then hadolint Dockerfile || true; fi
+              pip install --quiet ruff mypy pytest
               ;;
-            docker)
-              docker --version || true
-              if command -v hadolint > /dev/null; then hadolint Dockerfile || true; fi
+            *)
+              echo "no dependency install for stack ${{ steps.detect.outputs.stack }}"
               ;;
-            terraform)
-              terraform fmt -check -recursive || true
-              ;;
-            docs) echo "no lint for docs-only change" ;;
-            *) echo "no static check for unknown stack" ;;
           esac
 
-  # 2. TESTS — unit/integration, baseline-aware.
+      - name: Run static gate
+        shell: bash
+        run: bash .pre-push-qa/skills/pre-push-qa/scripts/run.sh --scope static
+
+  # 2. TESTS — unit/integration.
   tests:
     name: tests
     needs: static
@@ -153,14 +175,22 @@ jobs:
       - name: Checkout caller code
         uses: actions/checkout@v5
 
+      - name: Checkout QA scripts
+        uses: actions/checkout@v5
+        with:
+          repository: berriosb/agent-fleet
+          ref: v1
+          path: .pre-push-qa
+          sparse-checkout: skills/pre-push-qa
+
       - name: Setup pnpm
-        if: needs.static.outputs.stack == 'pnpm' || needs.static.outputs.stack == 'npm' || needs.static.outputs.stack == 'mixed'
+        if: contains(fromJSON('["pnpm","npm","yarn","bun","mixed"]'), needs.static.outputs.stack)
         uses: pnpm/action-setup@v4
         with:
           version: 9
 
       - name: Setup Python (uv)
-        if: needs.static.outputs.stack == 'python' || needs.static.outputs.stack == 'mixed'
+        if: contains(fromJSON('["python","pip","mixed"]'), needs.static.outputs.stack)
         uses: astral-sh/setup-uv@v3
 
       - name: Setup Python (system)
@@ -169,36 +199,42 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install hadolint
-        if: needs.static.outputs.stack == 'docker' || needs.static.outputs.stack == 'pip' || needs.static.outputs.stack == 'python'
+      - name: Install dependencies
         shell: bash
         run: |
-          if ! command -v hadolint > /dev/null; then
-            echo "Installing hadolint (Dockerfile linter)..."
-            sudo apt-get update -qq && sudo apt-get install -y -qq hadolint || true
-          fi
-
-      - name: Run tests
-        shell: bash
-        run: |
-          set +e
+          set -eo pipefail
           case "${{ needs.static.outputs.stack }}" in
-            pnpm|npm)
-              pnpm test -- --run --reporter=default 2>&1 | tail -40
+            pnpm)
+              pnpm install --frozen-lockfile --ignore-scripts
+              ;;
+            yarn)
+              yarn install --frozen-lockfile --ignore-scripts
+              ;;
+            bun)
+              bun install --frozen-lockfile --ignore-scripts
+              ;;
+            npm)
+              npm ci --ignore-scripts || npm install --ignore-scripts
               ;;
             python)
-              uv run pytest -q --tb=line 2>&1 | tail -40
+              if [ -f uv.lock ] || [ -f pyproject.toml ]; then
+                uv sync --frozen 2>/dev/null || uv sync
+              else
+                pip install --quiet ruff mypy pytest
+              fi
               ;;
             pip)
-              # No standard test runner for raw-pip projects; scan for common patterns.
-              if [ -d tests ]; then pytest -q --tb=line 2>&1 | tail -40 || true; fi
-              if [ -d test ]; then python -m unittest discover -s test 2>&1 | tail -20 || true; fi
-              echo "(pip) no test runner auto-detected; install pytest or define a run.sh if tests exist"
+              pip install --quiet -r requirements.txt
+              pip install --quiet ruff mypy pytest
               ;;
-            docker) echo "(docker) no test runner; add a Dockerfile test target to enable" ;;
-            docs) echo "no tests for docs-only change"; exit 0 ;;
-            *) echo "no tests configured"; exit 0 ;;
+            *)
+              echo "no dependency install for stack ${{ needs.static.outputs.stack }}"
+              ;;
           esac
+
+      - name: Run test gate
+        shell: bash
+        run: bash .pre-push-qa/skills/pre-push-qa/scripts/run.sh --scope tests
 
   # 3. AI REVIEW — Multi-provider (MiniMax M3 default, Anthropic, OpenAI, Gemini).
   ai-review:
