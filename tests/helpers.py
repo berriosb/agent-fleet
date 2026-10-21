@@ -13,6 +13,7 @@ import importlib.util
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS_DIR = REPO_ROOT / "scripts"
@@ -101,6 +102,9 @@ class ScriptTestCase(unittest.TestCase):
     """Base con un directorio temporal y los scripts ya cargados."""
 
     script: str = ""
+    # El modulo cargado se asigna en setUpClass. Se declara aca para que los
+    # type checkers lo vean como atributo de clase y no como un invento.
+    module: Any
 
     @classmethod
     def setUpClass(cls) -> None:

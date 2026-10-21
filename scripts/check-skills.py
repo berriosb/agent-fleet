@@ -46,6 +46,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import TypedDict
 
 REPO = Path(__file__).resolve().parent.parent
 SKILLS_DIR = REPO / "skills"
@@ -63,11 +64,19 @@ ENV_PATTERN_SITES = [
     SKILLS_DIR / "pre-push-qa" / "SKILL.md",
 ]
 
+class ReplicatedCommand(TypedDict):
+    """La forma de una entrada de REPLICATED_COMMANDS."""
+
+    name: str
+    canonical: str
+    sites: list[Path]
+
+
 # Comandos que el repo replica en mas de un sitio. Cada entrada declara la forma
 # canonica y los sitios donde debe aparecer. Si alguien edita uno solo, este
 # chequeo lo reporta: es el mismo mecanismo que ya funciona para la regex de
 # `.env`, aplicado a los comandos.
-REPLICATED_COMMANDS = [
+REPLICATED_COMMANDS: list[ReplicatedCommand] = [
     {
         "name": "typecheck de TypeScript",
         "canonical": "--noEmit",
