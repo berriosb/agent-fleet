@@ -32,6 +32,7 @@ mcode, y cualquier otro cliente del [estándar Agent Skills](https://agentskills
 | `scripts/check-skills.py` | Frontmatter, glifos CJK, fences de código, flags replicados y consistencia de la cadena. Solo stdlib. |
 | `scripts/check-install.py` | Estado de **tu máquina**: skills sin enlazar y copias divergentes en los perfiles de Hermes. |
 | `scripts/verify-hook.sh` | Round-trip del gate: el hook acepta, consume y bloquea como debe. |
+| `scripts/verify-runner.sh` | Round-trip del runner: omite lo que no tiene, bloquea lo que falla, reparte por scope. |
 | `scripts/verify.sh` | Verificación del repo. Hermética: es lo que corre la CI. `--install` suma el estado de tu máquina. |
 | `scripts/release.sh` | Mueve el tag `v1` (que es la release) al HEAD. Con `--push` lo publica. |
 | `upstream/ATTRIBUTION.md` | De dónde viene cada skill y bajo qué licencia. |
@@ -142,7 +143,7 @@ pre-push-qa        # desde cualquier repo
 npx skills add berriosb/agent-fleet          # ./<agent>/skills/, commiteado
 ```
 
-Para un repo donde querés que las reglas viajen con el código.
+Para un repo donde quieras que las reglas viajen con el código.
 
 ## Bootstrap: las skills no son obligatorias por sí solas
 
@@ -236,12 +237,38 @@ nunca.
 | `sync-conventions.py --check` | La referencia proyectada del vault está al día. |
 | `check-skills.py` | Frontmatter, glifos CJK, fences, flags de CLI replicados y que CHAIN.md y los SKILL.md no se contradigan. |
 | `verify-hook.sh` | El hook de push acepta un marcador válido, lo consume, y bloquea un marcador obsoleto o ausente. |
+| `verify-runner.sh` | El runner omite las herramientas que el proyecto no tiene, bloquea las que fallan, y respeta `--scope`. |
 | `run.sh` | El gate pasa sobre el propio repo. |
 
 La verificación del repo es **hermética**: da el mismo resultado en un clone limpio y en
 tu máquina, y por eso es la que corre la CI. El estado de tu instalación (las skills
 enlazadas en `~/.agents`, `~/.claude`, `~/.codex`, `~/.gemini`) es otra cosa: se
 comprueba aparte con `python3 scripts/check-install.py`.
+
+## Qué cambia para los repos que usan el workflow
+
+El workflow reusable dejó de ser decorativo. Antes los jobs de `lint` y de `tests`
+terminaban en `|| true` y los tests iban por un pipe que devolvía el código de
+`tail`: **un PR con lint roto y una suite en rojo pasaban los dos**. Ahora los dos
+jobs ejecutan el runner y fallan de verdad.
+
+Consecuencias al actualizar a `v1`:
+
+| Cambio | Qué se ve |
+|---|---|
+| El job de lint y tipos falla si hay lint o errores de tipo | PRs que antes pasaban en verde ahora se ponen rojos |
+| El job de tests falla si la suite falla | Ídem |
+| `auto-fix` dispara de verdad | Se abre una rama `auto/fix-<run>` en vez de no hacer nada |
+| El shellcheck del stack `mixed` ahora corre | Un script con problemas de shell bloquea el push |
+| Los repos Python sin manifiesto ahora se lintean | Antes pasaban sin que se mirara nada |
+
+Y lo que **no** cambia: una herramienta que el proyecto no tiene no es un fallo.
+Si `mypy` no está en el entorno del proyecto ni en el PATH, el typecheck se
+reporta como omitido. El gate bloquea por los problemas que encuentra, nunca por
+las herramientas que no pidió.
+
+Si no quieres que el gate bloquee, no uses el workflow reusable en ese repo: es
+opt-in por repo, y el camino local (`pre-push-qa`) se puede dejar como aviso.
 
 ## Publicar una versión
 

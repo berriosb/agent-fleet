@@ -111,6 +111,14 @@ belongs to the script runner (`pnpm run`, `npm run`), and `tsc` rejects it with
 `Unknown compiler option`, which used to fail the gate on every TypeScript
 repo.
 
+**A tool that is not there is skipped, never a failure.** The gate blocks on
+problems it finds, not on tooling the project never asked for. `ruff`, `mypy`
+and `pytest` are probed for availability before running; if none of them is
+available, the check is reported as skipped. This matters with `uv`: `uv run
+mypy` falls back to the PATH and, if the tool is not there either, answers
+`Failed to spawn` with exit code 2. Treating that as a failed typecheck made
+the same repository pass on a machine with mypy and fail on one without it.
+
 ## Step 2 — Run static + tests (the cheap, fast, free part)
 
 Run the runner against the repo you want to push. It prints every step, exits non-zero if
@@ -345,6 +353,10 @@ agy -p "test that you can see the pre-push-qa skill by listing skills" 2>&1 | he
 - **Do NOT pipe a test command without `set -o pipefail`** — `cmd | tail -40`
   returns the exit code of `tail`, so a failing suite looks green. The runner
   sets `pipefail`; ad-hoc commands outside it do not.
+- **Do NOT treat a missing tool as a failed check** — `uv run <tool>` answers
+  `Failed to spawn` (exit 2) when the tool is not in the project environment
+  and not on the PATH. That is a missing tool, not a broken one. Probe first,
+  then skip.
 - **Do NOT run `npm ci` in repos with a `pnpm-lock.yaml`** — lockfile dictates the
   package manager. Use pnpm.
 - **Do NOT install with `--frozen-lockfile` if the lockfile is stale** — `uv sync --frozen`
