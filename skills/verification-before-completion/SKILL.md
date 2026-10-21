@@ -7,6 +7,12 @@ license: MIT
 
 # Verification Before Completion
 
+## En la cadena
+
+Fase 3 — Verificación. Es una puerta, no un paso: se dispara en cada afirmación de éxito
+(antes de commitear, antes de cambiar de tarea, antes de delegar), no una vez al final.
+Orden completo: [`CHAIN.md`](../fleet-conventions/CHAIN.md).
+
 ## Overview
 
 **Core principle:** Evidence before claims, always.

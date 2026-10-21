@@ -9,6 +9,12 @@ license: MIT
 
 Actively build and sharpen the project's domain model as you design. This is the *active* discipline: challenging terms, inventing edge-case scenarios, and writing the glossary and decisions down the moment they crystallise. (Merely *reading* `GLOSSARY.md` for vocabulary is not this skill: that's a one-line habit any skill can do. This skill is for when you're changing the model, not just consuming it.)
 
+## En la cadena
+
+Fase 1 — Diseño. Corre después de `fleet-interview`, cuando las decisiones ya resolvieron
+términos que hay que dejar escritos.
+Orden completo: [`CHAIN.md`](../fleet-conventions/CHAIN.md).
+
 ## File structure
 
 Most repos have a single context:

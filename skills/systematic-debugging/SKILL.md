@@ -7,6 +7,13 @@ license: MIT
 
 # Systematic Debugging
 
+## En la cadena
+
+Fase 2 — Implementación. Condicional: se dispara cuando aparece un bug, en cualquier
+momento del trabajo. No espera al push: el gate de `pre-push-qa` solo ve lint, tipos y
+tests, no bugs de lógica.
+Orden completo: [`CHAIN.md`](../fleet-conventions/CHAIN.md).
+
 ## Overview
 
 **Core principle:** ALWAYS find root cause before attempting fixes. Symptom fixes are failure.

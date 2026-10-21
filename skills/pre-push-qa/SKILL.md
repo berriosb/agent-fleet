@@ -37,6 +37,12 @@ ln -sf /home/bastianberrios/Proyectos/agent-fleet/skills/pre-push-qa/scripts/run
 ```
 Running `pre-push-qa` in any terminal runs stack detection, linters, tests, security checks, and creates the verification marker.
 
+## En la cadena
+
+Fase 3 — Verificación: los chequeos de lint, tipos y tests.
+Fase 5 — Push: el marcador de verificación, que se genera **después** del commit.
+Orden completo: [`CHAIN.md`](../fleet-conventions/CHAIN.md).
+
 ## When to use this skill
 
 Load `pre-push-qa` whenever any of your agents says one of:

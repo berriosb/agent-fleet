@@ -16,6 +16,12 @@ Disciplina de cierre de sesión y traspaso de contexto entre agentes.
 
 El contexto de la ventana de chat es volátil: se compacta, se reinicia o se pierde al cambiar de agente (de Hermes a Claude Code, Antigravity agy, Codex, etc.). Esta skill garantiza que el próximo agente o sesión arranque con contexto completo y sin reconstruir la historia a ciegas.
 
+## En la cadena
+
+Fase 6 — Cierre. Es lo último: cuando cerrás sesión, compactás contexto o traspasás la
+tarea.
+Orden completo: [`CHAIN.md`](../fleet-conventions/CHAIN.md).
+
 ## Cuándo usar esta skill
 
 Cargar y ejecutar esta skill **siempre** antes de:

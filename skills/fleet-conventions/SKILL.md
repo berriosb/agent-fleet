@@ -24,6 +24,11 @@ sigue siendo `Agent-Shared/conventions.md`; su proyección literal vive en
 `python3 scripts/sync-conventions.py`. Editá el vault, no el `SKILL.md`: lo que el vault
 todavía no cubre (la regla CJK, `gio trash`) está acá a propósito.
 
+## En la cadena
+
+Fase 0 — Base. Transversal: se carga una vez al principio y rige todo lo demás.
+Orden completo: [`CHAIN.md`](CHAIN.md).
+
 ## 1. Verificación antes de declarar
 
 - Nunca declares algo terminado, arreglado o pasando sin **haber corrido el comando en este
@@ -80,8 +85,9 @@ todavía no cubre (la regla CJK, `gio trash`) está acá a propósito.
 - Al tomar una decisión durable → registro de decisiones. Al aprender algo generalizable →
   registro de lecciones. No quede en el chat.
 - Entregables en el formato: **qué cambia / qué se verifica / qué falta**.
-- Detalle operativo: `pre-push-qa` (gate antes de push), `work-unit-commits` (qué va en
-  cada commit), `fleet-interview` (alineación antes de implementar).
+- Detalle operativo: el orden de las skills vive en [`CHAIN.md`](CHAIN.md) —
+  `fleet-interview` (alineación antes de implementar) → `work-unit-commits` (qué va en
+  cada commit) → `pre-push-qa` (gate antes de push).
 
 ## 7. Estructura
 

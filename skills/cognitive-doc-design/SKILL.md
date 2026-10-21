@@ -7,6 +7,12 @@ metadata:
   author: gentleman-programming
 ---
 
+## En la cadena
+
+Fase 2 — Implementación: cada doc, README o nota de arquitectura que escribís.
+Fase 5 — Push: el cuerpo del PR.
+Orden completo: [`CHAIN.md`](../fleet-conventions/CHAIN.md).
+
 ## When to Use
 
 Load this skill when creating or editing documentation that people need to understand quickly, retain, or use during review.

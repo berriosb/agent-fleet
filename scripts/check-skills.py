@@ -261,6 +261,77 @@ def check_env_pattern(errors: list[str]) -> None:
             )
 
 
+def check_chain(errors: list[str]) -> None:
+    """
+    Verifica que el orden de las skills sea consistente y verificable.
+
+    `skills/fleet-conventions/CHAIN.md` es la fuente de verdad del orden: una tabla de
+    fases con las skills que entran en cada una. Cada `SKILL.md` declara las suyas en su
+    seccion "En la cadena". Este chequeo exige que ambas coincidan.
+
+    Sin esto, el orden vive solo en un diagrama de README que ningun agente lee en
+    runtime: cada skill se carga sola y nadie sabe que existia una cadena.
+    """
+    chain_path = SKILLS_DIR / "fleet-conventions" / "CHAIN.md"
+    if not chain_path.is_file():
+        fail(errors, "falta skills/fleet-conventions/CHAIN.md (orden canonico de las skills)")
+        return
+
+    chain = chain_path.read_text(encoding="utf-8")
+
+    # Tabla: | <fase> | <nombre> | `<skill>` | <cuando> |
+    chain_phases: dict[str, set[int]] = {}
+    phase_ids: set[int] = set()
+    for line in chain.split("\n"):
+        row = re.match(r"^\|\s*(\d+)\s*\|[^|]*\|\s*`([a-z0-9-]+)`\s*\|", line)
+        if not row:
+            continue
+        phase = int(row.group(1))
+        skill = row.group(2)
+        phase_ids.add(phase)
+        chain_phases.setdefault(skill, set()).add(phase)
+
+    if not chain_phases:
+        fail(errors, "CHAIN.md no tiene filas de fase con el formato | fase | nombre | `skill` | ... |")
+        return
+
+    expected_phases = set(range(min(phase_ids), max(phase_ids) + 1))
+    if phase_ids != expected_phases:
+        missing = sorted(expected_phases - phase_ids)
+        fail(errors, f"CHAIN.md tiene fases con huecos: faltan {missing}")
+
+    skills = sorted(
+        p.parent.name for p in SKILLS_DIR.glob("*/SKILL.md")
+    )
+    for skill in skills:
+        if skill not in chain_phases:
+            fail(errors, f"CHAIN.md no menciona la skill '{skill}'")
+    for skill in chain_phases:
+        if skill not in skills:
+            fail(errors, f"CHAIN.md declara '{skill}', que no existe en skills/")
+
+    for skill in skills:
+        path = SKILLS_DIR / skill / "SKILL.md"
+        content = path.read_text(encoding="utf-8")
+        match = re.search(r"^## En la cadena\s*$(.*?)(?=^## |\Z)", content, re.M | re.DOTALL)
+        if not match:
+            fail(errors, f"{skill}/SKILL.md: falta la seccion '## En la cadena'")
+            continue
+        declared = {int(n) for n in re.findall(r"^Fase (\d+)\b", match.group(1), re.M)}
+        if not declared:
+            fail(errors, f"{skill}/SKILL.md: la seccion 'En la cadena' no declara ninguna fase")
+            continue
+        unknown = declared - phase_ids
+        if unknown:
+            fail(errors, f"{skill}/SKILL.md: fases inexistentes en CHAIN.md: {sorted(unknown)}")
+        expected = chain_phases.get(skill, set())
+        if declared != expected:
+            fail(
+                errors,
+                f"{skill}/SKILL.md: declara las fases {sorted(declared)} pero CHAIN.md "
+                f"le asigna {sorted(expected)}",
+            )
+
 
 def main() -> int:
     errors: list[str] = []
@@ -269,6 +340,7 @@ def main() -> int:
     check_cjk(errors)
     check_fences(errors)
     check_env_pattern(errors)
+    check_chain(errors)
 
     if errors:
         for message in errors:
