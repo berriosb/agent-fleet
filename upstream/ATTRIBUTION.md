@@ -9,12 +9,15 @@ licencia de su origen. Los avisos exigidos por Apache-2.0 están en `NOTICE`.
 |---|---|---|
 | `fleet-conventions` | Bastián Berrios | MIT |
 | `session-handoff` | Bastián Berrios | MIT |
+| `hermes-fleet-audit` | Bastián Berrios | MIT |
+| `hermes-profile-audit` | Bastián Berrios | MIT |
 
 ## Skills adaptadas
 
 | Skill | Origen | Licencia | Cambios |
 |---|---|---|---|
 | `pre-push-qa` | Propio (historial migrado desde `berriosb/pre-push-qa`) | MIT | developing. Ver "Auditoría 2026-10-20". |
+| `hermes-agent` | [`NousResearch/hermes-agent`](https://github.com/NousResearch/hermes-agent) `skills/autonomous-ai-agents/hermes-agent` | MIT | Copia exacta del upstream v3.2.0 (fork `berriosb/hermes-agent`), mas la seccion "En la cadena" con la fase. Frontmatter normalizado (`version`, `license`, `platforms`, `metadata.hermes`). Las referencias propias del fleet se movieron a la skill `hermes-fleet-audit` para que esta siga siguiendo al upstream. |
 | `verification-before-completion` | [`obra/superpowers`](https://github.com/obra/superpowers) `skills/verification-before-completion` | MIT | Frontmatter normalizado (se agrega `license` y `version`). Se agrega la seccion "En la cadena" con la fase. Cuerpo sin cambios. |
 | `systematic-debugging` | [`obra/superpowers`](https://github.com/obra/superpowers) `skills/systematic-debugging` | MIT | Incluye guías de soporte (`root-cause-tracing.md`, `defense-in-depth.md`, `condition-based-waiting.md`). Adaptada para eliminar prefijos `superpowers:*`. Frontmatter normalizado (se agrega `version`). Se agrega la seccion "En la cadena" con la fase. |
 | `domain-modeling` | [`mattpocock/skills`](https://github.com/mattpocock/skills) `skills/engineering/domain-modeling` | MIT | Incluye plantillas `GLOSSARY-FORMAT.md` y `ADR-FORMAT.md`. Frontmatter normalizado (se agrega `license` y `version`). Se agrega la seccion "En la cadena" con la fase. |

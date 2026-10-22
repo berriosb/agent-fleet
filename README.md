@@ -19,11 +19,14 @@ mcode, y cualquier otro cliente del [estándar Agent Skills](https://agentskills
 | Ruta | Qué es |
 |---|---|
 | `skills/fleet-conventions/` | Las reglas que aplican a todo agente: verificación, idioma, datos, borrado, entregables. |
+| `skills/hermes-agent/` | Guía de operación de Hermes: configurar, extender, depurar y auditar un perfil del fleet. |
+| `skills/hermes-fleet-audit/` | Auditoría del fleet: inventario de skills por perfil, drift, uso real, memoria y plugins. |
 | `skills/fleet-conventions/CHAIN.md` | El orden canónico de las skills, por fases. Fuente de verdad del encadenado. |
 | `skills/pre-push-qa/` | Compuerta de calidad antes del push. Detecta el stack y corre lint + tests. |
 | `skills/fleet-interview/` | Interroga el árbol de decisiones antes de implementar. |
 | `skills/work-unit-commits/` | Un commit = un comportamiento entregable. Tests y docs con su código. |
 | `skills/systematic-debugging/` | Causa raíz antes de parchar. Reproducción Red-Green ante cualquier bug o fallo de tests. |
+| `skills/hermes-profile-audit/` | Auditoría de un perfil de Hermes: config declarado contra realidad, plugins, memoria y logs. |
 | `skills/verification-before-completion/` | Evidencia antes de afirmaciones. |
 | `skills/session-handoff/` | Cierre estructurado y traspaso de contexto en disco antes de compactar o rotar agentes. |
 | `skills/domain-modeling/` | Glosario y ADRs: el vocabulario compartido del proyecto. |

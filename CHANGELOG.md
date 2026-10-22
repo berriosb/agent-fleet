@@ -9,6 +9,34 @@ poder leerlo sin bucear en el historial.
 El detalle de qué se adaptó de cada upstream, y bajo qué licencia, está en
 [`upstream/ATTRIBUTION.md`](upstream/ATTRIBUTION.md).
 
+## 2026-10-22 — El fleet deja de divergir solo
+
+Una auditoría de las skills de los cuatro perfiles de Hermes encontró que el
+problema no era qué skills tenías, sino que ninguna sabía de las demás.
+
+- **Había dos `hermes-profile-audit` con el mismo nombre y 4% de similitud.** Una en
+  `codehak` (v1.0.0, 230 líneas) y otra en `mingo` (v0.1.0, 94 líneas), en categorías
+  distintas. La de `mingo` era un subconjunto: le faltaban los pitfalls de plugin
+  desktop-only, el contexto del engine de visión y el delta de toolsets. Ahora hay una
+  sola, en `devops/`, con lo único de las dos.
+- **La misma skill hacía drift entre perfiles.** `hermes-agent` tenía tres versiones
+  (v2.0.0 obsoleta de 36 KB, v3.2.0 del upstream, y una tercera con las auditorías
+  del fleet). La global era la vieja. Ahora `hermes-agent` es una copia exacta del
+  upstream v3.2.0 más la sección "En la cadena", y las referencias que eran del
+  fleet viven en su propia skill (`hermes-fleet-audit`). Así el upstream puede seguir
+  actualizándola sin que se vuelva a bifurcar.
+- **El mismo patrón se repitió en `systematic-debugging`, `google-workspace`,
+  `youtube-content`, `grounded-citations`, `obsidian`, `github` y
+  `hermes-agent-skill-authoring`.** En cada caso se compararon las versiones y se
+  conservó la mejor; donde las versiones traían contenido complementario (la
+  selección de llave SSH y la de *fork workflow* en `github`, el *squash merge* y el
+  *branch protection* en el mismo archivo) se fusionaron en una.
+- **`github` tenía tres versiones incompatibles de `pr-workflow.md`.** La de `codehak`
+  tenía la sección de *squash merge*, la de `aura` la de *fork workflow*, y cada una
+  numeraba sus secciones como "7". Ahora hay un archivo con las tres, numeradas.
+- **`docx` en `codehak` era una versión más vieja** que el upstream (antes del
+  *linter fix* que convirtió `yield from` en un loop). Restaurada.
+
 ## 2026-10-21 — El gate pasa a ser real
 
 El repo es un quality gate para agentes, y el gate no hacía lo que prometía.

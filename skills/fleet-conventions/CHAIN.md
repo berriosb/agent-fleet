@@ -17,6 +17,7 @@ Una fase es un momento del trabajo. Cada skill pertenece a al menos una.
 | Fase | Nombre | Skill | Se carga cuando |
 |---|---|---|---|
 | 0 | Base | `fleet-conventions` | Siempre, antes de cualquier otra cosa. Reglas transversales. |
+| 0 | Base | `hermes-agent` | Se configura, extiende, depura o audita Hermes mismo: el guia de operacion del vehiculo. |
 | 1 | Diseño | `fleet-interview` | La tarea no es trivial o tiene decisiones abiertas. |
 | 1 | Diseño | `work-unit-commits` | Para partir el trabajo en commits antes de implementar. |
 | 1 | Diseño | `domain-modeling` | Una decisión cambió el vocabulario, o va un ADR. |
@@ -24,6 +25,8 @@ Una fase es un momento del trabajo. Cada skill pertenece a al menos una.
 | 2 | Implementación | `cognitive-doc-design` | Escribís un doc, un README, una nota de arquitectura. |
 | 3 | Verificación | `verification-before-completion` | Antes de afirmar que algo está terminado, y antes de commitear. |
 | 3 | Verificación | `pre-push-qa` | Los chequeos de lint, tipos y tests. |
+| 3 | Verificación | `hermes-profile-audit` | Se audita el estado de un perfil del fleet: antes o después de un `hermes update`, cuando un perfil se comporta mal, o en un barrido periodico. |
+| 3 | Verificación | `hermes-fleet-audit` | Se audita el fleet completo: inventario de skills por perfil, drift, uso real, memoria y plugins. |
 | 4 | Commit | `work-unit-commits` | Antes de cada `git commit`: qué va en este commit. |
 | 5 | Push | `pre-push-qa` | El marcador de verificación, que se genera **después** del commit. |
 | 5 | Push | `cognitive-doc-design` | Escribís el cuerpo del PR. |

@@ -15,6 +15,8 @@ verifica que ambas cosas coincidan: el orden no puede quedar solo en un diagrama
 | Fase | Skill | Cuándo |
 |---|---|---|
 | 0 · Base | `fleet-conventions` | **Siempre.** Las reglas universales. Leer antes de empezar cualquier tarea. |
+| 0 · Base | `hermes-agent` | Al configurar, extender, depurar o auditar Hermes mismo. |
+| 3 · Verificación | `hermes-fleet-audit` | Al auditar el fleet completo: inventario de skills por perfil, drift, uso real, memoria y plugins. |
 | 1 · Diseño | `fleet-interview` | Antes de implementar algo no trivial o con decisiones abiertas. |
 | 1 · Diseño | `work-unit-commits` | Para partir el trabajo en commits antes de implementar. |
 | 1 · Diseño | `domain-modeling` | Al cambiar vocabulario del dominio o escribir un ADR. |
@@ -22,6 +24,7 @@ verifica que ambas cosas coincidan: el orden no puede quedar solo en un diagrama
 | 2 · Implementación | `cognitive-doc-design` | Al escribir docs, README o notas de arquitectura. |
 | 3 · Verificación | `verification-before-completion` | Antes de declarar algo terminado, y antes de commitear. |
 | 3 · Verificación | `pre-push-qa` | Los chequeos de lint, tipos y tests. |
+| 3 · Verificación | `hermes-profile-audit` | Se audita un perfil del fleet: config declarado contra realidad, plugins, memoria y logs. |
 | 4 · Commit | `work-unit-commits` | Antes de cada commit. |
 | 5 · Push | `pre-push-qa` | Antes de cada `git push` o `gh pr create`. El marcador se genera **después** del commit. |
 | 5 · Push | `cognitive-doc-design` | Al escribir el cuerpo de un PR. |
