@@ -286,10 +286,14 @@ nunca.
 | Paso | Qué comprueba |
 |---|---|
 | `sync-conventions.py --check` | La referencia proyectada del vault está al día. |
-| `check-skills.py` | Frontmatter, glifos CJK, fences, flags de CLI replicados y que CHAIN.md y los SKILL.md no se contradigan. |
+| `check-skills.py` | Frontmatter, glifos CJK, fences, flags de CLI replicados, que CHAIN.md y los SKILL.md no se contradigan, que la CI **ejecute** el gate y no solo lo mencione, que cada skill esté **enlazada** en `.agents/skills/`, y que el diagrama de este README coincida con `CHAIN.md`. |
 | `verify-hook.sh` | El hook de push acepta un marcador válido, lo consume, y bloquea un marcador obsoleto o ausente. |
 | `verify-runner.sh` | El runner omite las herramientas que el proyecto no tiene, bloquea las que fallan, y respeta `--scope`. |
 | `run.sh` | El gate pasa sobre el propio repo. |
+
+El primer paso necesita el vault: en local, en disco; en CI, el secret `VAULT_TOKEN`
+del repo. Si el vault no está accesible, el paso **no puede comparar** — y en CI eso
+es un fallo explícito (`--require-vault`), no un verde vacío.
 
 La verificación del repo es **hermética**: da el mismo resultado en un clone limpio y en
 tu máquina, y por eso es la que corre la CI. El estado de tu instalación (las skills

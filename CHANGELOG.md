@@ -9,6 +9,38 @@ poder leerlo sin bucear en el historial.
 El detalle de qué se adaptó de cada upstream, y bajo qué licencia, está en
 [`upstream/ATTRIBUTION.md`](upstream/ATTRIBUTION.md).
 
+## 2026-10-28 — Los guards que estaban en prosa
+
+Una auditoría del repo encontró cinco promesas que estaban escritas en los documentos
+pero que no tenían ninguna contraparte en código. El repo estaba sano: verde, con el
+tag al día, 48 tests en verde. El problema no era que algo estuviera roto: era que
+**nada impedía que se rompiera sin avisar**.
+
+- **La CI podía volver a ser decorativa y nadie lo notaba.** `check-skills.py` exigía
+  que el texto `run.sh --scope static` *apareciera* en `qa.yml`, no que se ejecutara ni
+  que su código de salida se propagara. Añadir `|| true`, `| tail`, `continue-on-error`,
+  o reemplazar la invocación por un `echo` pasaban los dos checks en verde. Es el mismo
+  bug que el 2026-10-21, un nivel más arriba. Ahora el checker parsea los steps del
+  workflow y exige la forma canónica, sin supresores y sin `continue-on-error`.
+- **El symlink de una skill nueva nunca se verificaba.** `check-install.py` mira los
+  directorios de tu máquina; nadie miraba `.agents/skills/` del repo. Una skill nueva
+  sin su enlace pasaba `verify.sh` entero en verde, y `npx skills add` — la
+  instalación que el README lidera — no la habría visto. Ahora hay un check.
+- **El paso 1 de `verify.sh` no verificaba nada.** El secret `VAULT_TOKEN` nunca estuvo
+  configurado en este repo, así que el job `conventions-sync` comparaba contra un vault
+  que no alcanzaba, avisaba, y salía con 0: verde desde siempre, sin comparar una sola
+  vez. Ahora hay `--require-vault`, y en CI el paso falla si no puede comparar.
+- **El diagrama del README era la cuarta copia del orden**, sin verificar: las otras
+  tres (CHAIN.md, AGENTS.md, los SKILL.md) se cruzan entre sí; esta no. Ahora también.
+- **El typecheck no cubría los tests.** `mypy` corría en modo default, que no chequea el
+  cuerpo de las funciones sin anotación: el archivo de tests más grande del repo no se
+  chequeaba para nada. Ahora `strict = True`.
+
+De paso, `mypy --strict` encontró un bug real: `sync-conventions.py` comparaba el
+nombre de la fuente (un `str`) contra `VAULT_PATHS` (una lista de `Path`), así que la
+preferencia por el disco local nunca se aplicaba. Funcionaba de casualidad, por el
+orden de inserción.
+
 ## 2026-10-21 — El gate pasa a ser real
 
 El repo es un quality gate para agentes, y el gate no hacía lo que prometía.

@@ -65,14 +65,23 @@ npx skills add berriosb/agent-fleet -g
 ./scripts/verify.sh
 ```
 
-Los cuatro pasos, por separado:
+Los cinco pasos, por separado:
 
 ```bash
 python3 scripts/sync-conventions.py --check  # la referencia proyecta igual al vault
-python3 scripts/check-skills.py              # frontmatter, CJK, fences, flags, cadena
+python3 scripts/check-skills.py              # frontmatter, CJK, fences, flags, cadena, enlaces
 bash scripts/verify-hook.sh                  # el hook acepta, consume y bloquea bien
+bash scripts/verify-runner.sh                # el runner omite, bloquea y reparte por scope
 ./skills/pre-push-qa/scripts/run.sh         # el gate pasa sobre el repo
 ```
+
+`check-skills.py` también verifica tres cosas que antes eran solo prosa: que la CI
+**ejecute** el gate y no solo lo mencione, que cada skill esté **enlazada** en
+`.agents/skills/`, y que el diagrama del README coincida con `CHAIN.md`.
+
+El paso 1 necesita el vault: en local, en disco; en CI, el secret `VAULT_TOKEN` del
+repo. Sin vault el paso no puede comparar, y con `--require-vault` eso es un fallo
+explícito en vez de un verde vacío.
 
 El estado de **tu máquina** (las skills enlazadas donde los agentes las buscan) es otra
 verificación, no del repo. Por eso va aparte:

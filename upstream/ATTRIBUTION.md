@@ -90,7 +90,7 @@ escribe antes del push) y `fleet-conventions` y `domain-modeling` no aparecian.
   `domain-modeling`, `fleet-interview`
 - **Apache-2.0** — `work-unit-commits`, `cognitive-doc-design`
 
-El texto completo de ambas licencias está en [`LICENSES/`](LICENSES/):
+El texto completo de ambas licencias está en [`LICENSES/`](../LICENSES/):
 `LICENSES/MIT-obra-superpowers.txt`, `LICENSES/MIT-mattpocock.txt`,
 `LICENSES/Apache-2.0-gentleman-programming.txt`.
 
