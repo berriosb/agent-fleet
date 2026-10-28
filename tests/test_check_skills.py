@@ -16,7 +16,7 @@ from tests.helpers import DEFAULT_DESCRIPTION, ScriptTestCase, write_chain, writ
 class TestFrontmatter(ScriptTestCase):
     script = "check-skills.py"
 
-    def test_lee_los_campos_basicos(self):
+    def test_lee_los_campos_basicos(self) -> None:
         path = self.root / "SKILL.md"
         path.write_text(
             '---\nname: alpha\ndescription: "Una descripcion larga."\n'
@@ -29,33 +29,33 @@ class TestFrontmatter(ScriptTestCase):
         self.assertEqual(fields["license"], "MIT")
         self.assertEqual(fields["version"], "1.0.0")
 
-    def test_sin_bloque_de_frontmatter(self):
+    def test_sin_bloque_de_frontmatter(self) -> None:
         path = self.root / "SKILL.md"
         path.write_text("# Solo markdown\n", encoding="utf-8")
         fields, errors = self.module.parse_frontmatter(path)
         self.assertIsNone(fields)
         self.assertTrue(errors)
 
-    def test_rechaza_tabuladores(self):
+    def test_rechaza_tabuladores(self) -> None:
         path = self.root / "SKILL.md"
         path.write_text("---\nname: alpha\n\tbad: indent\n---\n", encoding="utf-8")
         _, errors = self.module.parse_frontmatter(path)
         self.assertTrue(any("tabulador" in e for e in errors))
 
-    def test_rechaza_linea_yaml_invalida(self):
+    def test_rechaza_linea_yaml_invalida(self) -> None:
         path = self.root / "SKILL.md"
         path.write_text("---\nname alpha\n---\n", encoding="utf-8")
         _, errors = self.module.parse_frontmatter(path)
         self.assertTrue(any("YAML" in e for e in errors))
 
-    def test_description_corta_se_reporta(self):
+    def test_description_corta_se_reporta(self) -> None:
         self.use_root()
         write_skill(self.root, "alpha", description="corta")
         errors: list[str] = []
         self.module.check_frontmatter(errors)
         self.assertTrue(any("description demasiado corta" in e for e in errors))
 
-    def test_name_debe_coincidir_con_el_directorio(self):
+    def test_name_debe_coincidir_con_el_directorio(self) -> None:
         self.use_root()
         skill_dir = self.root / "skills" / "alpha"
         skill_dir.mkdir(parents=True)
@@ -72,7 +72,7 @@ class TestFrontmatter(ScriptTestCase):
 class TestFences(ScriptTestCase):
     script = "check-skills.py"
 
-    def test_bloque_sin_cerrar(self):
+    def test_bloque_sin_cerrar(self) -> None:
         self.use_root()
         (self.root / "a.md").write_text("```python\ncode\n", encoding="utf-8")
         errors: list[str] = []
@@ -80,7 +80,7 @@ class TestFences(ScriptTestCase):
         self.assertEqual(len(errors), 1)
         self.assertIn("nunca se cierra", errors[0])
 
-    def test_fence_interno_del_mismo_largo_trunca(self):
+    def test_fence_interno_del_mismo_largo_trunca(self) -> None:
         self.use_root()
         (self.root / "a.md").write_text(
             "```markdown\n```bash\necho hi\n```\n```\n", encoding="utf-8"
@@ -89,7 +89,7 @@ class TestFences(ScriptTestCase):
         self.module.check_fences(errors)
         self.assertTrue(any("trunca" in e for e in errors))
 
-    def test_fence_interno_mas_corto_es_contenido_legitimo(self):
+    def test_fence_interno_mas_corto_es_contenido_legitimo(self) -> None:
         self.use_root()
         (self.root / "a.md").write_text(
             "````markdown\n```bash\necho hi\n```\n````\n", encoding="utf-8"
@@ -102,7 +102,7 @@ class TestFences(ScriptTestCase):
 class TestCjk(ScriptTestCase):
     script = "check-skills.py"
 
-    def test_detecta_glifos_cjk(self):
+    def test_detecta_glifos_cjk(self) -> None:
         self.use_root()
         # El glifo se escribe por escapes: un CJK literal en el fuente seria
         # el mismo error que este test detecta.
@@ -111,14 +111,14 @@ class TestCjk(ScriptTestCase):
         self.module.check_cjk(errors)
         self.assertTrue(any("glifos CJK" in e for e in errors))
 
-    def test_texto_limpio_pasa(self):
+    def test_texto_limpio_pasa(self) -> None:
         self.use_root()
         (self.root / "a.md").write_text("texto normal\n", encoding="utf-8")
         errors: list[str] = []
         self.module.check_cjk(errors)
         self.assertEqual(errors, [])
 
-    def test_cobertura_rota_se_reporta(self):
+    def test_cobertura_rota_se_reporta(self) -> None:
         # Sin archivos de texto, el chequeo no cubrio nada: eso tambien es un fallo.
         self.use_root()
         (self.root / "a.bin").write_bytes(b"\x00\x01")
@@ -130,7 +130,7 @@ class TestCjk(ScriptTestCase):
 class TestChain(ScriptTestCase):
     script = "check-skills.py"
 
-    def test_fases_coincidentes_pasan(self):
+    def test_fases_coincidentes_pasan(self) -> None:
         self.use_root()
         # Las fases de CHAIN.md tienen que ser contiguas: un hueco es un
         # problema del archivo, no una libertad de numeracion.
@@ -140,7 +140,7 @@ class TestChain(ScriptTestCase):
         self.module.check_chain(errors)
         self.assertEqual(errors, [])
 
-    def test_skill_en_varias_fases_pasa(self):
+    def test_skill_en_varias_fases_pasa(self) -> None:
         self.use_root()
         write_skill(self.root, "alpha", phases=(1, 3))
         write_chain(self.root, {"alpha": {1, 3}})
@@ -148,7 +148,7 @@ class TestChain(ScriptTestCase):
         self.module.check_chain(errors)
         self.assertTrue(any("fases con huecos" in e for e in errors))
 
-    def test_fase_distinta_se_reporta(self):
+    def test_fase_distinta_se_reporta(self) -> None:
         self.use_root()
         write_skill(self.root, "alpha", phases=(1,))
         write_chain(self.root, {"alpha": {2}})
@@ -156,7 +156,7 @@ class TestChain(ScriptTestCase):
         self.module.check_chain(errors)
         self.assertTrue(any("CHAIN.md le asigna" in e for e in errors))
 
-    def test_skill_sin_mention_en_la_cadena(self):
+    def test_skill_sin_mention_en_la_cadena(self) -> None:
         self.use_root()
         write_skill(self.root, "alpha", phases=(1,))
         write_chain(self.root, {"otra": {1}})
@@ -164,7 +164,7 @@ class TestChain(ScriptTestCase):
         self.module.check_chain(errors)
         self.assertTrue(any("no menciona la skill" in e for e in errors))
 
-    def test_skill_inexistente_en_la_cadena(self):
+    def test_skill_inexistente_en_la_cadena(self) -> None:
         self.use_root()
         write_skill(self.root, "alpha", phases=(1,))
         write_chain(self.root, {"alpha": {1}, "fantasma": {2}})
@@ -172,7 +172,7 @@ class TestChain(ScriptTestCase):
         self.module.check_chain(errors)
         self.assertTrue(any("que no existe en skills/" in e for e in errors))
 
-    def test_fases_con_huecos(self):
+    def test_fases_con_huecos(self) -> None:
         self.use_root()
         write_skill(self.root, "alpha", phases=(1,))
         write_chain(self.root, {"alpha": {1}})
@@ -190,7 +190,7 @@ class TestChain(ScriptTestCase):
 class TestForbiddenCli(ScriptTestCase):
     script = "check-skills.py"
 
-    def test_typecheck_con_if_present_se_reporta(self):
+    def test_typecheck_con_if_present_se_reporta(self) -> None:
         self.use_root()
         # El comando invalido se arma por partes: el archivo fuente no puede
         # contenerlo literal, porque el chequeo escanea tambien los tests.
@@ -200,7 +200,7 @@ class TestForbiddenCli(ScriptTestCase):
         self.module.check_forbidden_cli(errors)
         self.assertTrue(any("flag invalido" in e for e in errors))
 
-    def test_typecheck_correcto_pasa(self):
+    def test_typecheck_correcto_pasa(self) -> None:
         self.use_root()
         (self.root / "run.sh").write_text('"$tsc_bin" --noEmit\n', encoding="utf-8")
         errors: list[str] = []
@@ -211,19 +211,19 @@ class TestForbiddenCli(ScriptTestCase):
 class TestCiUsesRunner(ScriptTestCase):
     script = "check-skills.py"
 
-    def _workflow(self, body: str):
+    def _workflow(self, body: str) -> None:
         workflows = self.root / ".github" / "workflows"
         workflows.mkdir(parents=True)
         (workflows / "qa.yml").write_text(body, encoding="utf-8")
 
-    def test_ci_sin_invocar_el_runner_se_reporta(self):
+    def test_ci_sin_invocar_el_runner_se_reporta(self) -> None:
         self.use_root()
         self._workflow("jobs:\n  static:\n    steps: []\n")
         errors: list[str] = []
         self.module.check_ci_uses_runner(errors)
         self.assertTrue(any("no invoca" in e for e in errors))
 
-    def test_ci_con_comandos_propios_se_reporta(self):
+    def test_ci_con_comandos_propios_se_reporta(self) -> None:
         self.use_root()
         self._workflow(
             "jobs:\n  static:\n    steps:\n"
@@ -236,7 +236,7 @@ class TestCiUsesRunner(ScriptTestCase):
         self.module.check_ci_uses_runner(errors)
         self.assertTrue(any("no debe aparecer en la CI" in e for e in errors))
 
-    def test_ci_que_delega_pasa(self):
+    def test_ci_que_delega_pasa(self) -> None:
         self.use_root()
         self._workflow(
             "jobs:\n  static:\n    steps:\n"
@@ -435,7 +435,7 @@ class TestReadmeDiagramMatchesChain(ScriptTestCase):
 class TestAgentsMatchesChain(ScriptTestCase):
     script = "check-skills.py"
 
-    def _write_agents(self, entries: dict[str, set[int]]):
+    def _write_agents(self, entries: dict[str, set[int]]) -> None:
         rows = []
         for skill, phases in sorted(entries.items()):
             for phase in sorted(phases):
@@ -447,7 +447,7 @@ class TestAgentsMatchesChain(ScriptTestCase):
             encoding="utf-8",
         )
 
-    def test_fases_coincidentes_pasan(self):
+    def test_fases_coincidentes_pasan(self) -> None:
         self.use_root()
         write_skill(self.root, "alpha", phases=(1, 2))
         write_chain(self.root, {"alpha": {1, 2}})
@@ -456,7 +456,7 @@ class TestAgentsMatchesChain(ScriptTestCase):
         self.module.check_agents_matches_chain(errors)
         self.assertEqual(errors, [])
 
-    def test_fase_desactualizada_se_reporta(self):
+    def test_fase_desactualizada_se_reporta(self) -> None:
         self.use_root()
         write_skill(self.root, "alpha", phases=(1, 2))
         write_chain(self.root, {"alpha": {1, 2}})
@@ -465,7 +465,7 @@ class TestAgentsMatchesChain(ScriptTestCase):
         self.module.check_agents_matches_chain(errors)
         self.assertTrue(any("pero CHAIN.md le asigna" in e for e in errors))
 
-    def test_skill_faltante_en_agents_se_reporta(self):
+    def test_skill_faltante_en_agents_se_reporta(self) -> None:
         self.use_root()
         write_skill(self.root, "alpha", phases=(1,))
         write_chain(self.root, {"alpha": {1}})
@@ -478,7 +478,7 @@ class TestAgentsMatchesChain(ScriptTestCase):
 class TestReadmeListsSkills(ScriptTestCase):
     script = "check-skills.py"
 
-    def test_skill_faltante_se_reporta(self):
+    def test_skill_faltante_se_reporta(self) -> None:
         self.use_root()
         write_skill(self.root, "alpha")
         (self.root / "README.md").write_text(
@@ -488,7 +488,7 @@ class TestReadmeListsSkills(ScriptTestCase):
         self.module.check_readme_lists_skills(errors)
         self.assertTrue(any("no lista la skill 'alpha'" in e for e in errors))
 
-    def test_todas_las_skills_listadas_pasan(self):
+    def test_todas_las_skills_listadas_pasan(self) -> None:
         self.use_root()
         write_skill(self.root, "alpha")
         write_skill(self.root, "beta")
@@ -503,7 +503,7 @@ class TestReadmeListsSkills(ScriptTestCase):
 class TestCoverageConsistency(ScriptTestCase):
     script = "check-skills.py"
 
-    def test_cjk_y_fences_miran_el_mismo_conjunto(self):
+    def test_cjk_y_fences_miran_el_mismo_conjunto(self) -> None:
         self.use_root()
         # Un archivo con las dos fallas: los dos chequeos tienen que reportarlo.
         # Antes uno miraba los trackeados y el otro todo el directorio.
