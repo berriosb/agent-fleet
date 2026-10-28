@@ -211,7 +211,7 @@ class TestForbiddenCli(ScriptTestCase):
 class TestCiUsesRunner(ScriptTestCase):
     script = "check-skills.py"
 
-    def _workflow(self, body: str) -> None:
+    def _workflow(self, body: str):
         workflows = self.root / ".github" / "workflows"
         workflows.mkdir(parents=True)
         (workflows / "qa.yml").write_text(body, encoding="utf-8")
@@ -248,11 +248,194 @@ class TestCiUsesRunner(ScriptTestCase):
         self.module.check_ci_uses_runner(errors)
         self.assertEqual(errors, [])
 
+    def test_ci_con_supresor_de_exit_code_se_reporta(self) -> None:
+        # La regresion que el repo ya arreglo una vez: el gate corre pero su
+        # codigo de salida se descarta, y la CI vuelve a ser decorativa.
+        self.use_root()
+        self._workflow(
+            "jobs:\n  static:\n    steps:\n"
+            "      - run: bash run.sh --detect\n"
+            "      - run: bash run.sh --scope static || true\n"
+            "      - run: bash run.sh --scope tests\n"
+        )
+        errors: list[str] = []
+        self.module.check_ci_uses_runner(errors)
+        self.assertTrue(any("|| true" in e for e in errors))
+
+    def test_ci_con_pipe_que_traga_el_exit_code_se_reporta(self) -> None:
+        # `... | tail` devuelve el codigo de `tail`, no el del gate.
+        self.use_root()
+        self._workflow(
+            "jobs:\n  static:\n    steps:\n"
+            "      - run: bash run.sh --detect\n"
+            "      - run: bash run.sh --scope static | tail -20\n"
+            "      - run: bash run.sh --scope tests\n"
+        )
+        errors: list[str] = []
+        self.module.check_ci_uses_runner(errors)
+        self.assertTrue(any("| tail" in e for e in errors))
+
+    def test_ci_con_continue_on_error_se_reporta(self) -> None:
+        self.use_root()
+        self._workflow(
+            "jobs:\n  static:\n    steps:\n"
+            "      - run: bash run.sh --detect\n"
+            "      - name: Run static gate\n"
+            "        continue-on-error: true\n"
+            "        run: bash run.sh --scope static\n"
+            "      - run: bash run.sh --scope tests\n"
+        )
+        errors: list[str] = []
+        self.module.check_ci_uses_runner(errors)
+        self.assertTrue(any("continue-on-error" in e for e in errors))
+
+    def test_ci_con_invocacion_que_no_ejecuta_el_gate_se_reporta(self) -> None:
+        # El string esta, el gate no corre. Un chequeo de presencia no lo ve.
+        self.use_root()
+        self._workflow(
+            "jobs:\n  static:\n    steps:\n"
+            "      - run: bash run.sh --detect\n"
+            "      - run: echo 'run.sh --scope static'\n"
+            "      - run: bash run.sh --scope tests\n"
+        )
+        errors: list[str] = []
+        self.module.check_ci_uses_runner(errors)
+        self.assertTrue(any("forma canonica" in e for e in errors))
+
+    def test_el_parser_lee_los_jobs_y_los_steps(self) -> None:
+        self.use_root()
+        self._workflow(
+            "jobs:\n"
+            "  static:\n"
+            "    continue-on-error: true\n"
+            "    steps:\n"
+            "      - name: Detect\n"
+            "        run: |\n"
+            "          set -eo pipefail\n"
+            "          stack=$(bash run.sh --detect)\n"
+            "      - name: Gate\n"
+            "        run: bash run.sh --scope static\n"
+            "  tests:\n"
+            "    steps:\n"
+            "      - run: bash run.sh --scope tests\n"
+        )
+        jobs = self.module.parse_workflow_jobs(
+            (self.root / ".github" / "workflows" / "qa.yml").read_text(encoding="utf-8")
+        )
+        self.assertEqual([job["name"] for job in jobs], ["static", "tests"])
+        self.assertTrue(jobs[0]["continue_on_error"])
+        self.assertFalse(jobs[1]["continue_on_error"])
+        self.assertEqual(len(jobs[0]["steps"]), 2)
+        # El bloque escalar `run: |` se lee entero, no solo su primera linea.
+        self.assertIn("--detect", jobs[0]["steps"][0]["run"])
+        self.assertEqual(jobs[0]["steps"][1]["run"], "bash run.sh --scope static")
+
+
+class TestAgentLinks(ScriptTestCase):
+    script = "check-skills.py"
+
+    def _link(self, name: str) -> None:
+        links = self.root / ".agents" / "skills"
+        links.mkdir(parents=True, exist_ok=True)
+        (links / name).symlink_to(self.root / "skills" / name)
+
+    def test_skill_sin_enlace_se_reporta(self) -> None:
+        # Una skill que esta en skills/ pero no esta enlazada no la carga
+        # ningun agente. Y no hay ninguna senal: el agente no la busca.
+        self.use_root()
+        write_skill(self.root, "alpha")
+        (self.root / ".agents" / "skills").mkdir(parents=True)
+        errors: list[str] = []
+        self.module.check_agent_links(errors)
+        self.assertTrue(any("falta el enlace" in e for e in errors))
+
+    def test_sin_directorio_de_enlaces_se_reporta(self) -> None:
+        self.use_root()
+        write_skill(self.root, "alpha")
+        errors: list[str] = []
+        self.module.check_agent_links(errors)
+        self.assertTrue(any("falta .agents/skills/" in e for e in errors))
+
+    def test_todas_las_skills_enlazadas_pasan(self) -> None:
+        self.use_root()
+        write_skill(self.root, "alpha")
+        write_skill(self.root, "beta")
+        self._link("alpha")
+        self._link("beta")
+        errors: list[str] = []
+        self.module.check_agent_links(errors)
+        self.assertEqual(errors, [])
+
+    def test_enlace_a_un_lugar_fuera_del_repo_se_reporta(self) -> None:
+        self.use_root()
+        write_skill(self.root, "alpha")
+        links = self.root / ".agents" / "skills"
+        links.mkdir(parents=True, exist_ok=True)
+        (links / "alpha").symlink_to(self.root / "otro")
+        errors: list[str] = []
+        self.module.check_agent_links(errors)
+        self.assertTrue(any("fuera de skills/" in e for e in errors))
+
+    def test_enlace_a_skill_inexistente_se_reporta(self) -> None:
+        self.use_root()
+        write_skill(self.root, "alpha")
+        self._link("alpha")
+        links = self.root / ".agents" / "skills"
+        (links / "fantasma").symlink_to(self.root / "skills" / "fantasma")
+        errors: list[str] = []
+        self.module.check_agent_links(errors)
+        self.assertTrue(any("no corresponde a ninguna skill" in e for e in errors))
+
+
+class TestReadmeDiagramMatchesChain(ScriptTestCase):
+    script = "check-skills.py"
+
+    def _readme(self, diagram: str) -> None:
+        (self.root / "README.md").write_text(
+            "Intro.\n\n```\n" + diagram + "```\n", encoding="utf-8"
+        )
+
+    def _diagram(self, entries: dict[str, set[int]]) -> str:
+        lines: list[str] = []
+        for phase in sorted({p for phases in entries.values() for p in phases}):
+            for skill in sorted(s for s, phases in entries.items() if phase in phases):
+                prefix = f"Fase {phase} " if not lines or not lines[-1].startswith("        ") else ""
+                lines.append(f"{prefix}{skill}  ← descripcion")
+        return "\n".join(lines) + "\n"
+
+    def test_diagrama_alineado_pasa(self) -> None:
+        self.use_root()
+        entries = {"alpha": {1}, "beta": {2}}
+        write_chain(self.root, entries)
+        self._readme(self._diagram(entries))
+        errors: list[str] = []
+        self.module.check_readme_diagram_matches_chain(errors)
+        self.assertEqual(errors, [])
+
+    def test_diagrama_desalineado_se_reporta(self) -> None:
+        # El diagrama es la cuarta copia del orden. Si deriva sola, el README
+        # miente sobre la cadena y nada lo nota.
+        self.use_root()
+        write_chain(self.root, {"alpha": {1}})
+        self._readme("Fase 3  alpha  ← movida de fase\n")
+        errors: list[str] = []
+        self.module.check_readme_diagram_matches_chain(errors)
+        self.assertTrue(any("diagrama" in e for e in errors))
+
+    def test_readme_sin_diagrama_se_reporta(self) -> None:
+        self.use_root()
+        write_chain(self.root, {"alpha": {1}})
+        (self.root / "README.md").write_text("Sin diagrama.\n", encoding="utf-8")
+        errors: list[str] = []
+        self.module.check_readme_diagram_matches_chain(errors)
+        self.assertTrue(any("diagrama de fases" in e for e in errors))
+
+
 
 class TestAgentsMatchesChain(ScriptTestCase):
     script = "check-skills.py"
 
-    def _write_agents(self, entries: dict[str, set[int]]) -> None:
+    def _write_agents(self, entries: dict[str, set[int]]):
         rows = []
         for skill, phases in sorted(entries.items()):
             for phase in sorted(phases):

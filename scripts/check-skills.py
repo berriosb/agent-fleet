@@ -34,6 +34,14 @@ Chequeos
 11. AGENTS.md declara las mismas fases que CHAIN.md, y el README lista todas las
     skills. AGENTS.md es lo que un agente lee de verdad: su tabla no puede
     quedar vieja en silencio.
+12. la CI ejecuta el gate de verdad: la invocacion esta en su forma canonica y
+    ningun supresor (`|| true`, `| tail`, `continue-on-error`) descarta su
+    codigo de salida. Un gate que corre pero no bloquea es un gate decorativo.
+13. cada skill esta enlazada en `.agents/skills/`. Una skill que existe en el
+    repo y no esta enlazada no existe para ningun agente, y no hay ninguna
+    senal: el agente simplemente no la carga.
+14. el diagrama del README coincide con CHAIN.md. El diagrama es la cuarta copia
+    del orden; si deriva sola, el README miente sobre la cadena.
 
 Uso
 ───
@@ -70,6 +78,22 @@ class ReplicatedCommand(TypedDict):
     name: str
     canonical: str
     sites: list[Path]
+
+
+class WorkflowStep(TypedDict):
+    """Un step de un workflow: lo minimo para juzgar si el gate bloquea."""
+
+    name: str
+    run: str
+    continue_on_error: bool
+
+
+class WorkflowJob(TypedDict):
+    """Un job de un workflow, con sus steps."""
+
+    name: str
+    continue_on_error: bool
+    steps: list[WorkflowStep]
 
 
 # Comandos que el repo replica en mas de un sitio. Cada entrada declara la forma
@@ -137,6 +161,30 @@ REQUIRED_IN_WORKFLOW = [
     "run.sh --scope tests",
 ]
 
+# La invocacion del gate, en la unica forma que no pierde el codigo de salida.
+# Deliberadamente no acepta `sudo`, pipes ni envoltorios: si hay que correr el
+# gate con algo mas, que se cambie la forma canonica y no la regla.
+CANONICAL_INVOCATION_RE = re.compile(
+    r"^(?:bash|sh)\s+\S*run\.sh\s+--scope\s+(static|tests)$"
+)
+
+# Formas de descartar el codigo de salida. Son las que dejan pasar en verde un
+# lint roto o una suite en rojo, que es el bug que este repo ya arreglo una vez.
+#
+# `| tail` es el otro lado de la misma moneda: un pipe devuelve el codigo de la
+# ultima orden del pipe, no el del gate.
+SUPPRESSORS = [
+    "|| true",
+    "|| :",
+    "|| echo",
+    "|| exit 0",
+    "set +e",
+    "| tail",
+    "| tee",
+    "| head",
+    "| cat",
+]
+
 # Archivos donde un flag invalido rompe el gate. Los `.md` quedan afuera a
 # proposito: la documentacion puede (y debe) nombrar el flag que se prohibe.
 CODE_SUFFIXES = {".sh", ".js", ".yml", ".yaml", ".py"}
@@ -147,6 +195,15 @@ CODE_SUFFIXES = {".sh", ".js", ".yml", ".yaml", ".py"}
 #   AGENTS.md: | 3 · Verificacion | `pre-push-qa` | ... |
 CHAIN_ROW_RE = re.compile(r"^\|\s*(\d+)\s*\|[^|]*\|\s*`([a-z0-9-]+)`\s*\|")
 AGENTS_ROW_RE = re.compile(r"^\|\s*(\d+)\s*·\s*[^|]*\|\s*`([a-z0-9-]+)`\s*\|")
+
+# El diagrama del README es la cuarta copia del orden, y es prosa: no tiene
+# tabla. Dos formatos de linea: la que abre una fase y la que continua la
+# anterior.
+#   Fase 2  systematic-debugging         ← bug o comportamiento inesperado
+#           cognitive-doc-design         ← docs, READMEs, notas de arquitectura
+README_PHASE_RE = re.compile(r"^Fase (\d+)\s+([a-z][a-z0-9-]*)")
+README_CONT_RE = re.compile(r"^ {8}([a-z][a-z0-9-]*)\b")
+
 
 
 def parse_phase_table(text: str, row_re: re.Pattern[str]) -> dict[str, set[int]]:
@@ -443,6 +500,182 @@ def check_forbidden_cli(errors: list[str]) -> None:
                 fail(errors, f"{path.relative_to(REPO)}:{lineno}: flag invalido — {why}")
 
 
+def _indent_of(line: str) -> int:
+    """Cuantos espacios de indentacion tiene la linea."""
+    return len(line) - len(line.lstrip(" "))
+
+
+def _is_true(value: str) -> bool:
+    """True si el valor YAML es un booleano explicito."""
+    return value.strip().strip("'\"").lower() in ("true", "yes", "on")
+
+
+def _apply_step_property(step: WorkflowStep, text: str) -> None:
+    """Aplica una propiedad (`name:`, `run:`, `continue-on-error:`) a un step."""
+    key, _, value = text.partition(":")
+    key = key.strip()
+    value = value.strip()
+    if key == "name":
+        step["name"] = value.strip("'\"")
+    elif key == "continue-on-error":
+        step["continue_on_error"] = _is_true(value)
+    elif key == "run":
+        step["run"] = value
+
+
+def parse_workflow_jobs(content: str) -> list[WorkflowJob]:
+    """Extrae jobs y steps de un workflow de GitHub Actions.
+
+    Es un parser de indentacion, no un YAML completo: alcanza con la forma que
+    tienen los workflows (`jobs:` -> `<job>:` -> `steps:` -> `- <step>`) y evita
+    agregar PyYAML, que romperia la regla 4 del repo (`scripts/` solo usa
+    stdlib).
+
+    No pretende ser un YAML general. Pretende ser exacto sobre lo unico que
+    importa aca: si un step ejecuta el gate y si su fallo se propaga.
+
+    Por que hace falta y no alcanza con buscar strings: `run.sh --scope static
+    || true` contiene el texto que el chequeo anterior exigia, pero descarta el
+    codigo de salida, y la CI vuelve a ser decorativa. Y `run: echo 'run.sh
+    --scope static'` ni siquiera ejecuta el gate: el string aparece, el gate
+    no corre. Un chequeo de presencia no puede ver ninguna de las dos.
+    """
+    jobs: list[WorkflowJob] = []
+    job: WorkflowJob | None = None
+    job_indent = 0
+    step: WorkflowStep | None = None
+    step_indent = 0
+    step_list_indent: int | None = None
+    run_block: list[str] | None = None
+    run_block_indent = 0
+    in_jobs = False
+    jobs_indent = 0
+    in_steps = False
+    steps_indent = 0
+
+    def close_step() -> None:
+        nonlocal step
+        if step is not None and job is not None:
+            job["steps"].append(step)
+        step = None
+
+    def close_job() -> None:
+        nonlocal job, in_steps, step_list_indent
+        close_step()
+        if job is not None:
+            jobs.append(job)
+        job = None
+        in_steps = False
+        step_list_indent = None
+
+    for raw in content.split("\n"):
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = _indent_of(raw)
+
+        # Bloque escalar de `run: |` — su contenido es todo lo mas indented.
+        if run_block is not None:
+            if indent > run_block_indent:
+                run_block.append(raw)
+                continue
+            if step is not None:
+                step["run"] = "\n".join(run_block)
+            run_block = None
+
+        # Comienzo de un step.
+        if in_steps and stripped.startswith("- ") and indent > steps_indent:
+            if step_list_indent is None:
+                step_list_indent = indent
+            if indent != step_list_indent:
+                continue
+            close_step()
+            if job is None:
+                continue
+            step = {"name": "", "run": "", "continue_on_error": False}
+            step_indent = indent
+            _apply_step_property(step, stripped[2:].strip())
+            continue
+
+        # Propiedad de un step.
+        if step is not None and indent > step_indent:
+            key, _, value = stripped.partition(":")
+            if key.strip() == "run" and value.strip() in ("|", ">", "|-", ">-", "|+", ">+"):
+                run_block = []
+                run_block_indent = indent
+            else:
+                _apply_step_property(step, stripped)
+            continue
+
+        # Comienzo de un job: una clave al mismo nivel que el job anterior.
+        # (El primero se detecta abajo, cuando `job` todavia es None.)
+        if (
+            in_jobs
+            and job is not None
+            and indent == job_indent
+            and stripped.endswith(":")
+            and not stripped.startswith("-")
+        ):
+            close_job()
+            job = {"name": stripped[:-1].strip(), "continue_on_error": False, "steps": []}
+            job_indent = indent
+            continue
+
+        # Comienzo del primer job.
+        if (
+            in_jobs
+            and job is None
+            and indent > jobs_indent
+            and stripped.endswith(":")
+            and not stripped.startswith("-")
+        ):
+            job = {"name": stripped[:-1].strip(), "continue_on_error": False, "steps": []}
+            job_indent = indent
+            continue
+
+        # Propiedad de un job.
+        if job is not None and indent > job_indent:
+            key, _, value = stripped.partition(":")
+            if key.strip() == "continue-on-error":
+                job["continue_on_error"] = _is_true(value)
+            elif key.strip() == "steps":
+                in_steps = True
+                steps_indent = indent
+            continue
+
+        if stripped == "jobs:":
+            in_jobs = True
+            jobs_indent = indent
+            continue
+
+        # Algo al mismo nivel que `jobs:`: termina el bloque.
+        if in_jobs and indent <= jobs_indent:
+            close_job()
+            in_jobs = False
+
+    close_job()
+    return jobs
+
+
+def _logical_lines(run: str) -> list[str]:
+    """Lineas logicas de un bloque de shell: une las continuaciones con `\\`."""
+    lines: list[str] = []
+    buffer = ""
+    for raw in run.split("\n"):
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        buffer = f"{buffer} {stripped}".strip() if buffer else stripped
+        if buffer.endswith("\\"):
+            buffer = buffer[:-1].rstrip()
+            continue
+        lines.append(buffer)
+        buffer = ""
+    if buffer:
+        lines.append(buffer)
+    return lines
+
+
 def check_ci_uses_runner(errors: list[str]) -> None:
     """La CI invoca el runner; no trae su propia copia de los comandos.
 
@@ -450,6 +683,10 @@ def check_ci_uses_runner(errors: list[str]) -> None:
     copia de la CI dejo de fallar porque cada chequeo terminaba en `|| true` y
     los tests iban por un pipe que devuelve el codigo de `tail`. Si la CI
     vuelve a traer comandos propios, ese arreglo se deshace en silencio.
+
+    Y no alcanza con que el runner "este" en el workflow: tiene que EJECUTARSE
+    y su fallo tiene que PROPAGARSE. Un gate que corre pero no bloquea es un
+    gate decorativo, que es exactamente lo que este repo vino a arreglar.
     """
     workflows = sorted((REPO / ".github" / "workflows").glob("*.yml"))
     if not workflows:
@@ -468,16 +705,69 @@ def check_ci_uses_runner(errors: list[str]) -> None:
                 )
 
     reusable = REPO / ".github" / "workflows" / "qa.yml"
-    if reusable.is_file():
-        content = reusable.read_text(encoding="utf-8")
-        for required in REQUIRED_IN_WORKFLOW:
-            if required not in content:
+    if not reusable.is_file():
+        return
+    content = reusable.read_text(encoding="utf-8")
+    rel = reusable.relative_to(REPO)
+
+    for required in REQUIRED_IN_WORKFLOW:
+        if required not in content:
+            fail(
+                errors,
+                f"{rel}: no invoca '{required}'. La CI tiene que delegar en el "
+                "runner para que local y remoto apliquen los mismos criterios.",
+            )
+
+    for job in parse_workflow_jobs(content):
+        for step in job["steps"]:
+            run = step["run"]
+            if "run.sh" not in run:
+                continue
+            label = step["name"] or job["name"] or "step sin nombre"
+
+            # 1. Ningun supresor puede descartar el codigo de salida del gate.
+            for line in _logical_lines(run):
+                if "run.sh" not in line:
+                    continue
+                for suppressor in SUPPRESSORS:
+                    if suppressor in line:
+                        fail(
+                            errors,
+                            f"{rel}: '{suppressor}' descarta el codigo de salida del "
+                            f"gate en '{label}'. Un lint roto o una suite en rojo "
+                            "volverian a pasar en verde.",
+                        )
+
+            if "--scope" not in run:
+                # `--detect` no es el gate: no exige forma canonica.
+                continue
+
+            # 2. La invocacion tiene que estar en su forma canonica.
+            canonical = [
+                line for line in _logical_lines(run) if CANONICAL_INVOCATION_RE.match(line)
+            ]
+            if not canonical:
                 fail(
                     errors,
-                    f"{reusable.relative_to(REPO)}: no invoca '{required}'. La CI tiene "
-                    "que delegar en el runner para que local y remoto apliquen los "
-                    "mismos criterios.",
+                    f"{rel}: la invocacion del gate en '{label}' no esta en su forma "
+                    "canonica. Tiene que ser `bash <ruta>/run.sh --scope static|tests`, "
+                    "sin envoltorios: un `echo` o un pipe la convierten en decorativa.",
                 )
+
+            # 3. Ni el step ni el job pueden ser continue-on-error.
+            if step["continue_on_error"]:
+                fail(
+                    errors,
+                    f"{rel}: el step '{label}' tiene continue-on-error: true. El gate "
+                    "no seria bloqueante.",
+                )
+            if job["continue_on_error"]:
+                fail(
+                    errors,
+                    f"{rel}: el job '{job['name']}' tiene continue-on-error: true. "
+                    "El gate no seria bloqueante.",
+                )
+
 
 
 def check_agents_matches_chain(errors: list[str]) -> None:
@@ -529,6 +819,148 @@ def check_readme_lists_skills(errors: list[str]) -> None:
     for skill in sorted(p.parent.name for p in SKILLS_DIR.glob("*/SKILL.md")):
         if f"skills/{skill}/" not in content:
             fail(errors, f"README.md no lista la skill '{skill}' (falta skills/{skill}/)")
+
+
+def check_agent_links(errors: list[str]) -> None:
+    """Cada skill del repo tiene que estar enlazada en `.agents/skills/`.
+
+    Por que existe: `skills/` es el arbol canonico, pero los agentes no leen esa
+    carpeta: leen `.agents/skills/`. Una skill que esta en el repo y no esta
+    enlazada ahi no existe para ningun agente, y no hay ninguna señal: el
+    agente simplemente no la carga. Es el argumento de `AGENTS.md` regla 6, que
+    por mucho tiempo fue solo prosa.
+
+    `check-install.py` ya tiene la maquinaria (detecta `FALTA`, `ROTO` y
+    `DIVERGENTE`), pero mira los directorios de la MAQUINA. Este chequeo cubre
+    el del REPO, que es el que viaja con el codigo y decide que skills ve un
+    agente que instala con `npx skills add`.
+    """
+    links_dir = REPO / ".agents" / "skills"
+    skills = sorted(p.parent.name for p in SKILLS_DIR.glob("*/SKILL.md"))
+
+    if not links_dir.is_dir():
+        fail(errors, "falta .agents/skills/ (donde los agentes buscan las skills)")
+        return
+
+    for skill in skills:
+        link = links_dir / skill
+        if not link.is_symlink():
+            if link.exists():
+                fail(
+                    errors,
+                    f".agents/skills/{skill} existe pero no es un enlace simbolico",
+                )
+            else:
+                fail(
+                    errors,
+                    f"falta el enlace .agents/skills/{skill}: la skill esta en skills/ "
+                    "pero ningun agente la va a cargar",
+                )
+            continue
+        target = link.resolve()
+        try:
+            target.relative_to(SKILLS_DIR.resolve())
+        except ValueError:
+            fail(
+                errors,
+                f".agents/skills/{skill} apunta a {target}, que esta fuera de skills/",
+            )
+
+    for link in sorted(links_dir.iterdir()):
+        if not link.is_symlink():
+            fail(errors, f".agents/skills/{link.name} no es un enlace simbolico")
+            continue
+        if link.name not in skills:
+            fail(
+                errors,
+                f".agents/skills/{link.name} no corresponde a ninguna skill de skills/ "
+                "(enlace roto o skill eliminada)",
+            )
+
+
+def _fenced_blocks(text: str) -> list[list[str]]:
+    """Los bloques delimitados por ``` del documento."""
+    blocks: list[list[str]] = []
+    current: list[str] | None = None
+    for line in text.split("\n"):
+        if line.strip().startswith("```"):
+            if current is None:
+                current = []
+            else:
+                blocks.append(current)
+                current = None
+            continue
+        if current is not None:
+            current.append(line)
+    return blocks
+
+
+def parse_readme_diagram(block: list[str]) -> dict[str, set[int]]:
+    """El diagrama de fases del README, como skill -> fases.
+
+    El diagrama tiene dos formas de linea: la que abre una fase
+    (`Fase 2  systematic-debugging`) y la que continua la anterior
+    (`        cognitive-doc-design`). Las lineas de flecha (`↓`) y las de
+    `git commit` / `git push` no son skills y se ignoran.
+    """
+    phases: dict[str, set[int]] = {}
+    current: int | None = None
+    for line in block:
+        match = README_PHASE_RE.match(line)
+        if match:
+            current = int(match.group(1))
+            phases.setdefault(match.group(2), set()).add(current)
+            continue
+        if current is None:
+            continue
+        match = README_CONT_RE.match(line)
+        if match:
+            phases.setdefault(match.group(1), set()).add(current)
+    return phases
+
+
+def check_readme_diagram_matches_chain(errors: list[str]) -> None:
+    """El diagrama del README tiene que decir lo mismo que CHAIN.md.
+
+    El diagrama es la CUARTA copia del orden: CHAIN.md, AGENTS.md, los
+    SKILL.md y este. Las tres primeras estan verificadas entre si; esta no
+    estaba, y por eso el README puede mentir sobre la cadena sin que nada lo
+    note. Un diagrama escrito a mano deriva: se deriva solo.
+    """
+    readme = REPO / "README.md"
+    if not readme.is_file():
+        fail(errors, "falta README.md")
+        return
+    content = readme.read_text(encoding="utf-8")
+
+    diagram: list[str] | None = None
+    for block in _fenced_blocks(content):
+        if any(README_PHASE_RE.match(line) for line in block):
+            diagram = block
+            break
+    if diagram is None:
+        fail(errors, "README.md no tiene el diagrama de fases (el bloque con las fases)")
+        return
+
+    chain_path = SKILLS_DIR / "fleet-conventions" / "CHAIN.md"
+    if not chain_path.is_file():
+        fail(errors, "falta skills/fleet-conventions/CHAIN.md (orden canonico de las skills)")
+        return
+
+    chain_phases = parse_phase_table(chain_path.read_text(encoding="utf-8"), CHAIN_ROW_RE)
+    diagram_phases = parse_readme_diagram(diagram)
+
+    for skill in sorted(set(chain_phases) | set(diagram_phases)):
+        expected = sorted(chain_phases.get(skill, set()))
+        found = sorted(diagram_phases.get(skill, set()))
+        if expected != found:
+            fail(
+                errors,
+                f"README.md: el diagrama pone '{skill}' en las fases {found} pero "
+                f"CHAIN.md le asigna {expected}. El diagrama es una copia del orden: "
+                "tiene que derivar junto con la fuente, no por su cuenta.",
+            )
+
 
 
 def check_chain(errors: list[str]) -> None:
@@ -611,9 +1043,11 @@ def main() -> int:
     check_replicated_commands(errors)
     check_forbidden_cli(errors)
     check_ci_uses_runner(errors)
+    check_agent_links(errors)
     check_chain(errors)
     check_agents_matches_chain(errors)
     check_readme_lists_skills(errors)
+    check_readme_diagram_matches_chain(errors)
 
     if errors:
         for message in errors:
