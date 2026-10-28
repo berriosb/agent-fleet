@@ -231,6 +231,14 @@ def main() -> int:
         action="store_true",
         help="solo comparar la referencia; exit 1 si difiere del vault (para CI)",
     )
+    parser.add_argument(
+        "--require-vault",
+        action="store_true",
+        help=(
+            "fallar si el vault no es accesible, en vez de omitir la comparacion. "
+            "Para CI: un chequeo que no comparo no puede pasar por verde."
+        ),
+    )
     args = parser.parse_args()
 
     sources = read_sources()
@@ -238,10 +246,18 @@ def main() -> int:
 
     if not available:
         errors = "; ".join(f"{label}: {err}" for label, _, err in sources if err)
+        if args.require_vault:
+            sys.exit(
+                f"[sync] el vault no es accesible y --require-vault esta activo: {errors}. "
+                "Sin el vault no se puede verificar que la referencia este al dia, asi que "
+                "el chequeo no puede pasar por verde. En CI hace falta el secret "
+                "VAULT_TOKEN del repo; en local, el vault en disco."
+            )
         if args.check and TARGET.is_file():
             print(
                 f"[sync] AVISO: vault no accesible ({errors}). "
-                f"Se omite la comparación y se preserva {TARGET.relative_to(REPO)}."
+                f"Se omite la comparación y se preserva {TARGET.relative_to(REPO)}. "
+                "Esto NO verifica nada: el paso quedo sin comparar."
             )
             return 0
         sys.exit(f"[sync] no se pudo leer el vault: {errors}")
@@ -278,8 +294,12 @@ def main() -> int:
         return 0
 
     # Escritura: la fuente de verdad es el disco local; el mirror es respaldo.
+    # `label` es el texto de la fuente (el path local como str, o la URL), asi
+    # que se compara contra las formas str de VAULT_PATHS: comparar el str
+    # contra los Path nunca da True, y la preferencia quedaba solo de casualidad.
+    local_labels = {str(path) for path in VAULT_PATHS}
     preferred = next(
-        (label for label, _, _ in sources if label in VAULT_PATHS and label in renders),
+        (label for label, _, _ in sources if label in local_labels and label in renders),
         next(iter(renders)),
     )
     rendered = renders[preferred]
