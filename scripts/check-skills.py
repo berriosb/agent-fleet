@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 check-skills.py — validacion del repo de skills. Solo stdlib.
 

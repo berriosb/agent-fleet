@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 sync-conventions.py — regenera skills/fleet-conventions/references/vault-conventions.md
 desde el vault.
