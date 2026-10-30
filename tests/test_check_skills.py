@@ -317,6 +317,49 @@ class TestReadmeListsSkills(ScriptTestCase):
         self.assertEqual(errors, [])
 
 
+class TestSharedRules(ScriptTestCase):
+    script = "check-skills.py"
+
+    def test_regla_ausente_en_un_sitio_se_reporta(self):
+        self.use_root()
+        # La regla vive en dos skills. Si una la pierde, el agente recibe dos
+        # versiones distintas de lo mismo y nadie lo nota.
+        write_skill(self.root, "alpha", body="the test goes first in the diff")
+        write_skill(self.root, "beta", body="nada que ver aca")
+        self.module.SHARED_RULES = [
+            {
+                "name": "el test va antes que la implementacion",
+                "canonical": "test goes first in the diff",
+                "sites": [
+                    self.root / "skills" / "alpha" / "SKILL.md",
+                    self.root / "skills" / "beta" / "SKILL.md",
+                ],
+            }
+        ]
+        errors: list[str] = []
+        self.module.check_shared_rules(errors)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("test goes first in the diff", errors[0])
+
+    def test_regla_en_todos_los_sitios_pasa(self):
+        self.use_root()
+        write_skill(self.root, "alpha", body="the test goes first in the diff")
+        write_skill(self.root, "beta", body="the test goes first in the diff")
+        self.module.SHARED_RULES = [
+            {
+                "name": "el test va antes que la implementacion",
+                "canonical": "test goes first in the diff",
+                "sites": [
+                    self.root / "skills" / "alpha" / "SKILL.md",
+                    self.root / "skills" / "beta" / "SKILL.md",
+                ],
+            }
+        ]
+        errors: list[str] = []
+        self.module.check_shared_rules(errors)
+        self.assertEqual(errors, [])
+
+
 class TestCoverageConsistency(ScriptTestCase):
     script = "check-skills.py"
 

@@ -26,12 +26,14 @@ Chequeos
    aparece en la cadena. El orden no puede quedar solo en un diagrama de README.
 8. comandos replicados: cada comando que vive en mas de un sitio esta en su forma
    canonica en todos ellos (mismo mecanismo que el punto 6, para los comandos).
-9. flags prohibidos: ningun ejecutable le pasa a una herramienta un flag que no
-   acepta. `--if-present` a `tsc` es el caso que motivo el chequeo.
-10. la CI no reimplementa el gate: invoca al runner y no trae comandos propios de
+9. reglas replicadas: cada regla de comportamiento que vive en mas de un SKILL.md esta
+   en su forma canonica en todos ellos (mismo mecanismo que el punto 8, para las reglas).
+10. flags prohibidos: ningun ejecutable le pasa a una herramienta un flag que no
+    acepta. `--if-present` a `tsc` es el caso que motivo el chequeo.
+11. la CI no reimplementa el gate: invoca al runner y no trae comandos propios de
     lint, tipos o tests. Una copia propia diverge, y divergir en silencio es
     exactamente como se rompe un gate.
-11. AGENTS.md declara las mismas fases que CHAIN.md, y el README lista todas las
+12. AGENTS.md declara las mismas fases que CHAIN.md, y el README lista todas las
     skills. AGENTS.md es lo que un agente lee de verdad: su tabla no puede
     quedar vieja en silencio.
 
@@ -70,6 +72,34 @@ class ReplicatedCommand(TypedDict):
     name: str
     canonical: str
     sites: list[Path]
+
+
+class SharedRule(TypedDict):
+    """La forma de una entrada de SHARED_RULES."""
+
+    name: str
+    canonical: str
+    sites: list[Path]
+
+
+# Reglas que viven en mas de un SKILL.md. La forma canonica tiene que aparecer
+# en todos los sitios: una regla replicada se vence en uno de ellos sin que
+# nada lo note, y el resultado es que un agente ve dos versiones de lo mismo.
+#
+# El que motivo esto: la regla del "test antes que la implementacion" para
+# detectar al agente que toca los tests para que pasen. Vive en la skill que
+# decide los commits y en la skill que escribe el codigo; si una de las dos
+# la pierde, la trampa queda sin detectar.
+SHARED_RULES: list[SharedRule] = [
+    {
+        "name": "el test va antes que la implementacion en el diff",
+        "canonical": "test goes first in the diff",
+        "sites": [
+            SKILLS_DIR / "work-unit-commits" / "SKILL.md",
+            SKILLS_DIR / "fleet-pair" / "SKILL.md",
+        ],
+    },
+]
 
 
 # Comandos que el repo replica en mas de un sitio. Cada entrada declara la forma
@@ -412,6 +442,28 @@ def check_replicated_commands(errors: list[str]) -> None:
                 )
 
 
+def check_shared_rules(errors: list[str]) -> None:
+    """Una regla replicada tiene que estar en todos los sitios donde vive.
+
+    Es el mismo mecanismo que el de los comandos replicados, aplicado a las
+    reglas del comportamiento: si la forma canonica aparece en un sitio y no
+    en el otro, la regla ya no es una sola regla, y el agente recibe dos
+    versiones distintas de lo mismo.
+    """
+    for spec in SHARED_RULES:
+        for path in spec["sites"]:
+            if not path.is_file():
+                fail(errors, f"falta {path.relative_to(REPO)}")
+                continue
+            content = path.read_text(encoding="utf-8")
+            if spec["canonical"] not in content:
+                fail(
+                    errors,
+                    f"{path.relative_to(REPO)}: no dice '{spec['canonical']}' "
+                    f"({spec['name']})",
+                )
+
+
 def iter_code_files() -> list[Path]:
     """Archivos ejecutables del repo: shell, js, python y workflows.
 
@@ -609,6 +661,7 @@ def main() -> int:
     check_fences(errors)
     check_env_pattern(errors)
     check_replicated_commands(errors)
+    check_shared_rules(errors)
     check_forbidden_cli(errors)
     check_ci_uses_runner(errors)
     check_chain(errors)

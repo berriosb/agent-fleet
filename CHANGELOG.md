@@ -9,6 +9,38 @@ poder leerlo sin bucear en el historial.
 El detalle de qué se adaptó de cada upstream, y bajo qué licencia, está en
 [`upstream/ATTRIBUTION.md`](upstream/ATTRIBUTION.md).
 
+## 2026-10-30 — La cadena aprende a escribir código
+
+La cadena tenía un hueco: se pensaba, se partía en commits y se verificaba, pero **nadie
+decía cómo se escribía el código**. Entre la fase 1 (diseño) y la fase 4 (commit) no
+había ninguna skill. Tres skills nuevas, adaptadas de `nschurmann/hola-ai` (MIT), lo
+cubren.
+
+- **`fleet-backlog` (fase 1)** parte una idea en historias de usuario verticales, de una
+  línea cada una, que atraviesan todas las capas. La historia no dice "configurar la
+  base de datos": dice qué obtiene el usuario y por qué.
+- **`fleet-story` (fase 1)** refina **una** historia: 2-3 criterios de aceptación en
+  Given/When/Then, un plan de 5 bullets sin nombres de archivo, y el **out of scope**
+  explícito. Lo que queda afuera, escrito, es lo que no se cuela en la implementación.
+- **`fleet-pair` (fase 2)** es el loop: un test rojo, el código mínimo que lo hace
+  pasar, verde, y una parada a esperar la aprobación. Un paso por vez.
+
+Tres detalles que no vinieron del upstream:
+
+- **El modelo por fase** quedó declarado en `CHAIN.md`. No es una regla, es una tabla
+  con su razón: el modelo más capaz en diseño (se paga una vez), el más rápido en
+  implementación (la latencia se paga en cada iteración).
+- **El test va antes que la implementación en el diff.** Es la forma de detectar al
+  agente que toca los tests para que pasen. La regla quedó en `work-unit-commits` y en
+  `fleet-pair`, y `scripts/check-skills.py` ahora verifica que no se venza en uno de
+  los dos lados: es el mecanismo de las reglas replicadas, el mismo que ya cubría la
+  regex de `.env` y el flag inválido de `tsc`.
+- **`work-unit-commits` ganó una regla y un ítem de checklist** sobre el orden del test
+  en el diff.
+
+Las tres se invocan **por nombre**: `disable-model-invocation` se conserva del upstream
+porque arrancan un flujo con checkpoints humanos y el agente no debe dispararlas solo.
+
 ## 2026-10-22 — El fleet deja de divergir solo
 
 Una auditoría de las skills de los cuatro perfiles de Hermes encontró que el

@@ -32,6 +32,7 @@ Use it for:
 | Commit by work unit | A commit represents a deliverable behavior, fix, migration, or docs unit. |
 | Do not commit by file type | Avoid `models`, then `services`, then `tests` if none works alone. |
 | Keep tests with code | Tests belong in the same commit as the behavior they verify. |
+| Test before code in the diff | **The test goes first in the diff.** A test that changed after the code was already green is tampering, not refactoring. |
 | Keep docs with the user-visible change | Docs belong with the feature or workflow they explain. |
 | Tell a story | A reviewer should understand why each commit exists from its diff and message. |
 | Future PR-ready | Each commit should be a candidate chained PR when the change grows. |
@@ -44,11 +45,26 @@ Before committing, confirm:
 - [ ] The commit has one clear purpose.
 - [ ] The repo still makes sense after applying only this commit.
 - [ ] Tests or docs for this unit are included when relevant.
+- [ ] The test file changed before the implementation did, and no test changed after the code was already green.
 - [ ] Rollback is reasonable without reverting unrelated work.
 - [ ] Focused test command and exact result are recorded.
 - [ ] Runtime harness command/scenario and exact result are recorded, or explicit `N/A` explains why no runtime boundary exists.
 - [ ] Rollback boundary names the exact files/behavior removable without unrelated work.
 - [ ] The commit message explains the outcome, not the file list.
+
+## The test goes first in the diff
+
+The test belongs in the same commit as the behavior it verifies, but **the test goes
+first in the diff**. Order inside the commit:
+
+1. The test file, showing red.
+2. The implementation, turning it green.
+
+That order is what makes the diff auditable. `git show <sha> -- <test file>` shows
+exactly what was written for the test, and nothing else hides there. If a test changed
+after the implementation was already green, that is tampering, not refactoring — and
+the red-green check in `verification-before-completion` is what proves it: revert the
+fix, the test must fail.
 
 ## Split Examples
 
