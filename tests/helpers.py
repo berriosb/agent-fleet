@@ -46,7 +46,7 @@ CHAIN_TEMPLATE = """# La cadena de skills
 """
 
 
-def load_script(filename: str):
+def load_script(filename: str) -> Any:
     """Carga un script de `scripts/` por nombre, con guion incluido."""
     path = SCRIPTS_DIR / filename
     module_name = path.stem.replace("-", "_")
@@ -115,7 +115,7 @@ class ScriptTestCase(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
         self.root = Path(self._tmp.name)
 
-    def use_root(self, module=None) -> None:
+    def use_root(self, module: Any | None = None) -> None:
         """Apunta los paths del script al directorio temporal."""
         module = module or self.module
         module.REPO = self.root

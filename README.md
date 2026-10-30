@@ -55,6 +55,7 @@ lineal: hay fases transversales, condicionales y repetibles.
 
 ```
 Fase 0  fleet-conventions            ← reglas universales, se cargan una vez y rigen todo
+        hermes-agent                 ← configurar, extender o depurar Hermes mismo
           ↓
 Fase 1  fleet-interview              ← ¿qué quieres realmente? decisiones resueltas antes de código
         fleet-backlog                ← la idea partida en historias verticales (explícita)
@@ -68,6 +69,8 @@ Fase 2  fleet-pair                   ← la historia implementada en pasos teste
           ↓
 Fase 3  verification-before-completion ← ¿terminó? evidencia fresca, no afirmaciones
         pre-push-qa (chequeos)       ← ¿está sano? lint + types + tests, local, sin secrets
+        hermes-profile-audit         ← auditar UN perfil del fleet
+        hermes-fleet-audit          ← auditar el fleet entero
           ↓
 Fase 4  fleet-pair                   ← el gate ya pasó: ahora sí, el commit
         work-unit-commits            ← ¿qué va en este commit? un comportamiento por commit
@@ -316,10 +319,14 @@ nunca.
 | Paso | Qué comprueba |
 |---|---|
 | `sync-conventions.py --check` | La referencia proyectada del vault está al día. |
-| `check-skills.py` | Frontmatter, glifos CJK, fences, flags de CLI replicados y que CHAIN.md y los SKILL.md no se contradigan. |
+| `check-skills.py` | Frontmatter, glifos CJK, fences, flags de CLI replicados, que CHAIN.md y los SKILL.md no se contradigan, que la CI **ejecute** el gate y no solo lo mencione, que cada skill esté **enlazada** en `.agents/skills/`, y que el diagrama de este README coincida con `CHAIN.md`. |
 | `verify-hook.sh` | El hook de push acepta un marcador válido, lo consume, y bloquea un marcador obsoleto o ausente. |
 | `verify-runner.sh` | El runner omite las herramientas que el proyecto no tiene, bloquea las que fallan, y respeta `--scope`. |
 | `run.sh` | El gate pasa sobre el propio repo. |
+
+El primer paso necesita el vault: en local, en disco; en CI, el secret `VAULT_TOKEN`
+del repo. Si el vault no está accesible, el paso **no puede comparar** — y en CI eso
+es un fallo explícito (`--require-vault`), no un verde vacío.
 
 La verificación del repo es **hermética**: da el mismo resultado en un clone limpio y en
 tu máquina, y por eso es la que corre la CI. El estado de tu instalación (las skills

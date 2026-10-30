@@ -142,7 +142,7 @@ escribe antes del push) y `fleet-conventions` y `domain-modeling` no aparecian.
   `domain-modeling`, `fleet-interview`, `fleet-backlog`, `fleet-story`, `fleet-pair`
 - **Apache-2.0** — `work-unit-commits`, `cognitive-doc-design`
 
-El texto completo de cada licencia está en [`LICENSES/`](LICENSES/):
+El texto completo de cada licencia está en [`LICENSES/`](../LICENSES/):
 `LICENSES/MIT-obra-superpowers.txt`, `LICENSES/MIT-mattpocock.txt`,
 `LICENSES/MIT-nschurmann-hola-ai.txt`,
 `LICENSES/Apache-2.0-gentleman-programming.txt`.
