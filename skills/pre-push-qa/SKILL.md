@@ -242,19 +242,30 @@ When creating commits or opening Pull Requests (`gh pr create`), the agent **MUS
   - `fix(db): resolve connection pool leak on timeout`
 
 ### 3. PR Body Structure
-Always provide structured, factual technical context:
+The PR body has one canonical shape, defined by
+[`cognitive-doc-design`](../cognitive-doc-design/SKILL.md). Use it verbatim:
+
 ```markdown
 ## Summary
-[1-2 sentences explaining what problem is solved and why]
+[1-2 sentences: what problem is solved and why]
 
 ## Changes
 - [Concise bullet of change 1]
 - [Concise bullet of change 2]
 
 ## Verification
-- Lint / Static: [e.g. `uv run ruff check .` passed]
-- Tests: [e.g. `pnpm test` passed (15/15 tests)]
+- [command]: [exact result]
+
+## Out of scope
+- [what this PR does NOT do, so the reviewer doesn't look for it]
+
+## Review path
+- Start here: [file:line]
+- [ ] [criterion the reviewer can confirm]
 ```
+
+Do not invent a second format. `scripts/check-skills.py` verifies that this section
+and the canonical one in `cognitive-doc-design` do not drift apart.
 
 ## Outputs the agent should give back
 

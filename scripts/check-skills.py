@@ -90,6 +90,10 @@ class SharedRule(TypedDict):
 # implementacion" para detectar al agente que toca los tests para que pasen.
 # Vive en la skill que decide los commits y en la skill que escribe el codigo;
 # si una de las dos la pierde, la trampa queda sin detectar.
+#
+# El segundo: el cuerpo del PR. `cognitive-doc-design` define la forma canonica
+# y `pre-push-qa` la replica. Dos plantillas "MUST" incompatibles es como un
+# agente termina armando el cuerpo del PR a ojo.
 SHARED_RULES: list[SharedRule] = [
     {
         "name": "el test cambia en el mismo commit que la implementacion",
@@ -97,6 +101,14 @@ SHARED_RULES: list[SharedRule] = [
         "sites": [
             SKILLS_DIR / "work-unit-commits" / "SKILL.md",
             SKILLS_DIR / "fleet-pair" / "SKILL.md",
+        ],
+    },
+    {
+        "name": "el cuerpo del PR tiene una sola forma",
+        "canonical": "## Review path",
+        "sites": [
+            SKILLS_DIR / "cognitive-doc-design" / "SKILL.md",
+            SKILLS_DIR / "pre-push-qa" / "SKILL.md",
         ],
     },
 ]
