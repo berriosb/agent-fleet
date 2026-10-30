@@ -54,7 +54,7 @@ instala la skill con la lógica real y se le da un nombre propio (`fleet-intervi
 instalar `npx skills add mattpocock/skills` más adelante no deje dos skills con el mismo nombre
 compitiendo en el mismo agente.
 
-Si preferís el nombre original, renombrá el directorio y el campo `name` del frontmatter.
+Si prefieres el nombre original, renombra el directorio y el campo `name` del frontmatter.
 
 ### Por qué `backlog`, `story` y `pair` → `fleet-backlog`, `fleet-story` y `fleet-pair`
 

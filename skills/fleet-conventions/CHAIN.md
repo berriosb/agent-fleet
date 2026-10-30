@@ -2,7 +2,7 @@
 
 Orden canónico del fleet. Una sola fuente de verdad: cada `SKILL.md` declara en qué
 fase entra, y `scripts/check-skills.py` verifica que este archivo y los `SKILL.md` no se
-contradigan. Si tocás una skill, tocás también acá.
+contradigan. Si tocas una skill, tocas también aquí.
 
 ## Por qué fases y no una lista
 
@@ -25,7 +25,7 @@ Una fase es un momento del trabajo. Cada skill pertenece a al menos una.
 | 1 | Diseño | `domain-modeling` | Una decisión cambió el vocabulario, o va un ADR. |
 | 2 | Implementación | `fleet-pair` | Se implementa una historia refinada, en pasos testeados. Explícita. |
 | 2 | Implementación | `systematic-debugging` | Apareció un bug, un test falla, algo se comporta raro. |
-| 2 | Implementación | `cognitive-doc-design` | Escribís un doc, un README, una nota de arquitectura. |
+| 2 | Implementación | `cognitive-doc-design` | Escribes un doc, un README, una nota de arquitectura. |
 | 3 | Verificación | `verification-before-completion` | Antes de afirmar que algo está terminado, y antes de commitear. |
 | 3 | Verificación | `pre-push-qa` | Los chequeos de lint, tipos y tests. Por commit, con `--scope static`; completo, antes del push. |
 | 3 | Verificación | `systematic-debugging` | Cuando lo que falla es el gate: un test rojo o un error de tipos. |
@@ -34,8 +34,8 @@ Una fase es un momento del trabajo. Cada skill pertenece a al menos una.
 | 5 | Commit | `fleet-pair` | Cierra cada unidad de trabajo: el gate de la fase 3 primero, el commit después. Explícita. |
 | 5 | Commit | `work-unit-commits` | Antes de cada `git commit`: qué va en este commit y con qué mensaje. |
 | 6 | Push | `pre-push-qa` | El marcador de verificación, que se genera **después** del commit. |
-| 6 | Push | `cognitive-doc-design` | Escribís el cuerpo del PR. |
-| 7 | Cierre | `session-handoff` | Cerrás sesión, compactás contexto o traspasás la tarea. |
+| 6 | Push | `cognitive-doc-design` | Escribes el cuerpo del PR. |
+| 7 | Cierre | `session-handoff` | Cierras sesión, compactas contexto o traspasas la tarea. |
 
 La fase 4 es un **track por evento**, no un paso de la secuencia: las auditorías se
 disparan cuando toca, en cualquier momento, y no son parte del camino de una entrega.

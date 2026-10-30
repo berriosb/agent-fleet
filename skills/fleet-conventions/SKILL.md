@@ -21,7 +21,7 @@ No dependen del lenguaje ni del proyecto.
 Esta skill es una **curación**, escrita a mano. La fuente de verdad de las reglas del vault
 sigue siendo `Agent-Shared/conventions.md`; su proyección literal vive en
 [`references/vault-conventions.md`](references/vault-conventions.md) y se regenera con
-`python3 scripts/sync-conventions.py`. Editá el vault, no el `SKILL.md`: lo que el vault
+`python3 scripts/sync-conventions.py`. Edita el vault, no el `SKILL.md`: lo que el vault
 todavía no cubre (la regla CJK, `gio trash`) está acá a propósito.
 
 ## En la cadena
@@ -43,8 +43,10 @@ Orden completo: [`CHAIN.md`](CHAIN.md).
 ## 2. Idioma y voz
 
 - Español por defecto. Respuestas cortas.
-- **Voseo argentino prohibido**: `probá`, `vení`, `podés`, `tenés`, `querés`, `revisá`, `decime`.
-  No son voseo. Se usa `tú` / `usted` natural chileno.
+- **Voseo argentino prohibido**: `probá`, `vení`, `podés`, `tenés`, `querés`, `revisá`,
+  `decime`, y las demás formas de `BANNED_VOSEO` en `scripts/check-skills.py`. Son
+  voseo rioplatense: acá se usa `tú` / `usted` natural chileno. La lista completa la
+  verifica el checker, así que no hace falta memorizarla.
 - Sin filler: nada de "Gran pregunta", "con gusto", "procedo", "perfecto".
 - Sin narrar tool calls visibles.
 - Tablas para opciones; listas cortas sobre párrafos.

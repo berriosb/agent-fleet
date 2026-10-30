@@ -508,6 +508,49 @@ class TestReadmeListsSkills(ScriptTestCase):
         self.assertEqual(errors, [])
 
 
+class TestNoVoseo(ScriptTestCase):
+    script = "check-skills.py"
+
+    def test_voseo_se_reporta(self) -> None:
+        self.use_root()
+        (self.root / "a.md").write_text("Probá esto: querés revisá.\n", encoding="utf-8")
+        errors: list[str] = []
+        self.module.check_no_voseo(errors)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("voseo rioplatense", errors[0])
+
+    def test_texto_limpio_pasa(self) -> None:
+        self.use_root()
+        (self.root / "a.md").write_text(
+            "Probaste esto: quieres revisar. Está después de las 3, más o menos.\n",
+            encoding="utf-8",
+        )
+        errors: list[str] = []
+        self.module.check_no_voseo(errors)
+        self.assertEqual(errors, [])
+
+    def test_forma_sin_tilde_no_se_reporta(self) -> None:
+        # El voseo de -ar y -er sin tilde se escribe igual que el de "tu".
+        # No se puede distinguir, y el checker no lo intenta.
+        self.use_root()
+        (self.root / "a.md").write_text("podes y tenes\n", encoding="utf-8")
+        errors: list[str] = []
+        self.module.check_no_voseo(errors)
+        self.assertEqual(errors, [])
+
+    def test_archivo_exento_no_se_revisa(self) -> None:
+        self.use_root()
+        exento = self.module.SKILLS_DIR / "fleet-conventions" / "SKILL.md"
+        exento.parent.mkdir(parents=True, exist_ok=True)
+        exento.write_text("probá, vení, podés\n", encoding="utf-8")
+        # VOSEO_EXEMPT se calcula al importar; con use_root() hay que apuntarlo
+        # al directorio temporal.
+        self.module.VOSEO_EXEMPT = {exento}
+        errors: list[str] = []
+        self.module.check_no_voseo(errors)
+        self.assertEqual(errors, [])
+
+
 class TestInternalSkills(ScriptTestCase):
     script = "check-skills.py"
 

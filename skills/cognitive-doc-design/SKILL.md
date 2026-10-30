@@ -9,7 +9,7 @@ metadata:
 
 ## En la cadena
 
-Fase 2 — Implementación: cada doc, README o nota de arquitectura que escribís.
+Fase 2 — Implementación: cada doc, README o nota de arquitectura que escribes.
 Fase 6 — Push: el cuerpo del PR.
 Orden completo: [`CHAIN.md`](../fleet-conventions/CHAIN.md).
 

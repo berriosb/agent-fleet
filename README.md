@@ -17,7 +17,7 @@ mcode, y cualquier otro cliente del [estándar Agent Skills](https://agentskills
 **Las tres skills de Hermes no van en el paquete público.** Llevan
 `metadata.internal: true`, que es lo que el CLI respeta: no aparecen en el
 descubrimiento y no se instalan. Son para la flota del autor, no para el mundo.
-Si las querés:
+Si las quieres:
 
 ```bash
 npx skills add berriosb/agent-fleet -g --skill hermes-agent    # una puntual
@@ -155,7 +155,7 @@ npx skills add berriosb/agent-fleet -g
 Deja las skills en `~/.agents/skills/`, de donde leen OpenCode, Amp, Antigravity,
 Cline y unos veinte más. **No** las deja en `~/.claude/skills`, `~/.codex/skills`
 ni `~/.gemini/skills`: Claude Code, Codex y Gemini leen roots propios. Para
-cubrir esos tres, corré `scripts/install.sh` después.
+cubrir esos tres, corre `scripts/install.sh` después.
 
 ### Manual (symlinks)
 
@@ -320,7 +320,7 @@ El render es determinista: no lleva fecha ni rutas locales, así que el `--check
 mismo resultado hoy y dentro de un mes. La única fuente del `name` y la `description` del
 archivo generado es el `SKILL.md` curado, así que no pueden divergir.
 
-Para cambiar una regla: **edita el vault**, corré el sync, commiteá. Editar el `SKILL.md`
+Para cambiar una regla: **edita el vault**, corre el sync, commitea. Editar el `SKILL.md`
 a mano es correcto para lo que el vault no cubre todavía, pero ese texto no se regenera
 nunca.
 

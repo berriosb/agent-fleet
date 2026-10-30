@@ -70,7 +70,7 @@ npx skills add berriosb/agent-fleet -g
    cualquier agente sin instalar nada.
 5. **Cero glifos CJK en cualquier archivo escrito.** Correr el chequeo antes de commitear.
    Ver la sección de `fleet-conventions`.
-6. **Una skill que no está enlazada no existe.** Si agregás una skill al repo, enlazala
+6. **Una skill que no está enlazada no existe.** Si agregas una skill al repo, enlázala
    en los directorios de agente: `python3 scripts/check-install.py` te dice qué falta.
 
 ## Verificación

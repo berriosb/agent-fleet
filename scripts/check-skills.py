@@ -49,6 +49,8 @@ Chequeos
 16. las skills internas son exactamente las de `INTERNAL_SKILLS`, y cada una
     dice `metadata.internal: true`. El CLI de skills saltea del descubrimiento
     las que lo tienen, asi que el paquete publico no lleva las de Hermes.
+17. voseo: los `.md` del repo no usan formas de voseo rioplatense. Es la
+    ultima regla de `fleet-conventions` que era solo prosa.
 
 Uso
 ───
@@ -94,6 +96,52 @@ class SharedRule(TypedDict):
     canonical: str
     sites: list[Path]
 
+
+# Formas de voseo argentino que el repo prohibe (fleet-conventions §2).
+#
+# La lista es una lista de palabras, no una expresion regular: el voseo se
+# distingue por la tilde en los verbos de -ar y -er ("hablás" contra "hablas"),
+# pero hay palabras del español estandar que tambien la tienen ("está",
+# "después", "más", "atrás") y verbos cuyo preterite en primera persona
+# coincide con el imperativo de vos ("decí", "creé", "busqué", "salí"). Con una
+# lista de palabras no hay falsos positivos.
+#
+# Lo que NO se puede detectar: el voseo de -ar y -er sin tilde ("tenes", "podes",
+# "queres") se escribe igual que el de "tu". Es indistinguible en un archivo.
+BANNED_VOSEO = [
+    # Las que declara fleet-conventions §2.
+    "probá", "vení", "podés", "tenés", "querés", "revisá", "decime",
+    # Imperativos de voseo de -ar y -er. El preterite de esos verbos termina en
+    # -o o en -i, asi que no colisionan con nada.
+    "hablá", "usá", "dejá", "llevá", "pasá", "esperá", "cambiá", "llamá",
+    "empezá", "terminá", "agarrá", "apretá", "pegá", "cerrá", "apagá",
+    "juntá", "creá", "generá", "anotá", "mirá", "participá", "buscá",
+    "comprá", "votá", "viajá", "respondé", "entendé", "hacé", "poné",
+    "corré", "mové", "andá", "renombrá", "commiteá", "tocá", "agregá",
+    # Presentes de voseo de -ar y -er: la tilde los distingue del "tu".
+    "hablás", "preguntás", "hacés", "entendés", "revisás", "buscás",
+    "generás", "creás", "tocás", "agregás", "cerrás", "compactás",
+    "traspasás", "preferís",
+    # Presentes de voseo de -ir: "tu" escribe "escribes", "vos" "escribís".
+    "escribís", "vivís", "sentís", "decís",
+]
+
+# Archivos exentos del chequeo de voseo: los dos que DECLARAN la regla.
+# fleet-conventions/SKILL.md la lista; references/vault-conventions.md es la
+# proyeccion del vault, que la declara tambien. Sin excepcion, ninguna regla
+# podria nombrar las formas que prohibe.
+VOSEO_EXEMPT = {
+    SKILLS_DIR / "fleet-conventions" / "SKILL.md",
+    SKILLS_DIR / "fleet-conventions" / "references" / "vault-conventions.md",
+}
+
+_WORD_CHARS = r"a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ"
+VOSEO_RE = re.compile(
+    r"(?<![" + _WORD_CHARS + r"])("
+    + "|".join(re.escape(word) for word in BANNED_VOSEO)
+    + r")(?![" + _WORD_CHARS + r"])",
+    re.IGNORECASE,
+)
 
 # Skills que no van en el paquete publico. El CLI de skills (npx skills add)
 # respeta `metadata.internal: true` y las saltea del descubrimiento, asi que
@@ -546,6 +594,39 @@ def parse_metadata(path: Path) -> dict[str, str]:
         if nested:
             out[nested.group(1)] = nested.group(2).strip().strip("\"'")
     return out
+
+
+def check_no_voseo(errors: list[str]) -> None:
+    """Ningun archivo del repo habla en voseo rioplatense.
+
+    Es la ultima regla de `fleet-conventions` que no era verificable por
+    maquina. Ahora lo es: el checker busca las formas de `BANNED_VOSEO` en los
+    `.md` del repo y las reporta.
+
+    El alcance es honesto y acotado: verifica la prosa del repo, no la
+    respuesta del agente en el chat. Es el mismo limite que tiene el chequeo
+    de CJK, y sirve para lo mismo: que el repo no le enseñe a un agente a
+    hablar en voseo lo que despues le reprocha.
+    """
+    for rel in repo_files():
+        path = REPO / rel
+        if path.suffix.lower() != ".md" or not path.is_file():
+            continue
+        if path in VOSEO_EXEMPT:
+            continue
+        try:
+            content = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        for lineno, line in enumerate(content.split("\n"), 1):
+            found = {m.group(1) for m in VOSEO_RE.finditer(line)}
+            if found:
+                formas = ", ".join(f"'{f}'" for f in sorted(found))
+                fail(
+                    errors,
+                    f"{rel}:{lineno}: voseo rioplatense ({formas}). "
+                    "Acá se usa 'tú' / 'usted' natural chileno (fleet-conventions §2).",
+                )
 
 
 def check_internal_skills(errors: list[str]) -> None:
@@ -1227,6 +1308,7 @@ def main() -> int:
     check_cjk(errors)
     check_fences(errors)
     check_env_pattern(errors)
+    check_no_voseo(errors)
     check_internal_skills(errors)
     check_descriptions_route(errors)
     check_replicated_commands(errors)
