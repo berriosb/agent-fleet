@@ -1,3 +1,38 @@
+## 2026-10-30 — Los pendientes, y tres checks más
+
+Cinco cosas que quedaban abiertas, todas cerradas:
+
+- **La fase 4 es de auditoría.** `hermes-profile-audit` y `hermes-fleet-audit` estaban
+  en la fase 3 junto con el gate y la puerta, y el modelo por fase les decía "el que
+  sea: son comandos, no razonamiento" — falso, una auditoría es juicio sobre el
+  estado del fleet. Ahora tienen fase propia, y es un track por evento: no es el
+  siguiente paso de una entrega. Commit, Push y Cierre se corren a 5, 6 y 7.
+- **`systematic-debugging` entra también en la fase 3.** Su "when to use" incluye
+  test failures y build failures, que son de la fase 3, y el modelo de fases no
+  podía expresar el retroceso. Cuando el gate falla, la skill que depura ahora está
+  en la fase donde falla.
+- **Las skills de Hermes salen del paquete público.** `npx skills add` instalaba las
+  15, tres de ellas específicas de la flota del autor. Llevan `metadata.internal:
+  true`, que es lo que el CLI respeta. Verificado con el CLI real en un HOME aislado:
+  sin flag descubre 12, con `INSTALL_INTERNAL_SKILLS=1` descubre 15.
+- **La regla de idioma deja de ser solo prosa.** Era la última de `fleet-conventions`
+  sin contraparte en código, y el repo se escribía en voseo en 12 lugares. Ahora el
+  checker busca las formas de `BANNED_VOSEO` en los `.md`.
+- **Se publica el stack de memoria de vault** (`hermes-agent/references/vault-memory-stack.md`),
+  que estaba en el working tree desde el 29 de octubre.
+
+Y con ellos, tres checks nuevos (`check-skills.py` pasó de 13 a 17):
+
+- `check_no_voseo`: la lista es de palabras, no una regex. El voseo se distingue por
+  la tilde en los verbos de -ar y -er, pero "está", "después", "más" y "atrás" también
+  la tienen, y "decí", "creé", "busqué" y "salí" son preteritos que coinciden con
+  imperativos de vos. Con lista no hay falsos positivos. Lo que no se puede detectar:
+  el voseo sin tilde ("tenes", "podes"), que se escribe igual que el de "tú".
+- `check_internal_skills`: las skills internas son exactamente las de
+  `INTERNAL_SKILLS`. El riesgo del otro lado es el que importa: una skill pública
+  marcada por error desaparece del paquete sin que nadie lo note.
+- `check_descriptions_route`: toda `description` nombra al menos otra skill del repo.
+
 ## 2026-10-30 — La cadena deja de contradecirse
 
 Una auditoría del flujo completo (con un subagente leyendo las 15 skills y pruebas

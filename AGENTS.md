@@ -84,15 +84,18 @@ Los cinco pasos, por separado:
 
 ```bash
 python3 scripts/sync-conventions.py --check  # la referencia proyecta igual al vault
-python3 scripts/check-skills.py              # frontmatter, CJK, fences, flags, cadena, enlaces
+python3 scripts/check-skills.py              # frontmatter, CJK, fences, flags, cadena, enlaces, ruteo, internas, voseo
 bash scripts/verify-hook.sh                  # el hook acepta, consume y bloquea bien
 bash scripts/verify-runner.sh                # el runner omite, bloquea y reparte por scope
 ./skills/pre-push-qa/scripts/run.sh         # el gate pasa sobre el repo
 ```
 
-`check-skills.py` también verifica tres cosas que antes eran solo prosa: que la CI
+`check-skills.py` también verifica cosas que antes eran solo prosa: que la CI
 **ejecute** el gate y no solo lo mencione, que cada skill esté **enlazada** en
-`.agents/skills/`, y que el diagrama del README coincida con `CHAIN.md`.
+`.agents/skills/`, que el diagrama del README coincida con `CHAIN.md`, que cada
+`description` diga a qué skill cede el caso que no es suyo, que las skills marcadas
+como internas sean las de `INTERNAL_SKILLS`, y que la prosa del repo no hable en
+voseo.
 
 El paso 1 necesita el vault: en local, en disco; en CI, el secret `VAULT_TOKEN` del
 repo. Sin vault el paso no puede comparar, y con `--require-vault` eso es un fallo

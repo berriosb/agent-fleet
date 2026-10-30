@@ -48,7 +48,7 @@ entre el paquete público y la instalación local.
 | `skills/domain-modeling/` | Glosario y ADRs: el vocabulario compartido del proyecto. |
 | `skills/cognitive-doc-design/` | Docs que un revisor puede verificar sin reconstruir la historia. |
 | `scripts/sync-conventions.py` | Proyecta `conventions.md` del vault a `references/`. Render determinista: sin fecha ni rutas locales. |
-| `scripts/check-skills.py` | Frontmatter, glifos CJK, fences de código, flags replicados y consistencia de la cadena. Solo stdlib. |
+| `scripts/check-skills.py` | 17 checks: frontmatter, glifos CJK, fences de código, flags replicados, consistencia de la cadena, ruteo por `description`, skills internas, voseo. Solo stdlib. |
 | `scripts/check-install.py` | Estado de **tu máquina**: skills sin enlazar y copias divergentes en los perfiles de Hermes. |
 | `scripts/verify-hook.sh` | Round-trip del gate: el hook acepta, consume y bloquea como debe. |
 | `scripts/verify-runner.sh` | Round-trip del runner: omite lo que no tiene, bloquea lo que falla, reparte por scope. |
@@ -334,7 +334,7 @@ nunca.
 | Paso | Qué comprueba |
 |---|---|
 | `sync-conventions.py --check` | La referencia proyectada del vault está al día. |
-| `check-skills.py` | Frontmatter, glifos CJK, fences, flags de CLI replicados, que CHAIN.md y los SKILL.md no se contradigan, que la CI **ejecute** el gate y no solo lo mencione, que cada skill esté **enlazada** en `.agents/skills/`, y que el diagrama de este README coincida con `CHAIN.md`. |
+| `check-skills.py` | Frontmatter, glifos CJK, fences, flags de CLI replicados, que CHAIN.md y los SKILL.md no se contradigan, que la CI **ejecute** el gate y no solo lo mencione, que cada skill esté **enlazada** en `.agents/skills/`, que el diagrama de este README coincida con `CHAIN.md`, que cada `description` diga a qué skill cede el caso que no es suyo, que las skills internas sean las de `INTERNAL_SKILLS`, y que la prosa no hable en voseo. |
 | `verify-hook.sh` | El hook de push acepta un marcador válido, lo consume, y bloquea un marcador obsoleto o ausente. |
 | `verify-runner.sh` | El runner omite las herramientas que el proyecto no tiene, bloquea las que fallan, y respeta `--scope`. |
 | `run.sh` | El gate pasa sobre el propio repo. |
