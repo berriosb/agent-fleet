@@ -18,7 +18,7 @@ El contexto de la ventana de chat es volátil: se compacta, se reinicia o se pie
 
 ## En la cadena
 
-Fase 6 — Cierre. Es lo último: cuando cerrás sesión, compactás contexto o traspasás la
+Fase 7 — Cierre. Es lo último: cuando cerrás sesión, compactás contexto o traspasás la
 tarea.
 Orden completo: [`CHAIN.md`](../fleet-conventions/CHAIN.md).
 

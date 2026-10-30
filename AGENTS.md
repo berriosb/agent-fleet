@@ -16,7 +16,6 @@ verifica que ambas cosas coincidan: el orden no puede quedar solo en un diagrama
 |---|---|---|
 | 0 · Base | `fleet-conventions` | **Siempre.** Las reglas universales. Leer antes de empezar cualquier tarea. |
 | 0 · Base | `hermes-agent` | Al configurar, extender, depurar o auditar Hermes mismo. |
-| 3 · Verificación | `hermes-fleet-audit` | Al auditar el fleet completo: inventario de skills por perfil, drift, uso real, memoria y plugins. |
 | 1 · Diseño | `fleet-interview` | Antes de implementar algo no trivial o con decisiones abiertas. |
 | 1 · Diseño | `fleet-backlog` | Al partir una idea en historias de usuario. Explícita. |
 | 1 · Diseño | `fleet-story` | Al refinar UNA historia: criterios de aceptación y out of scope. Explícita. |
@@ -27,12 +26,14 @@ verifica que ambas cosas coincidan: el orden no puede quedar solo en un diagrama
 | 2 · Implementación | `cognitive-doc-design` | Al escribir docs, README o notas de arquitectura. |
 | 3 · Verificación | `verification-before-completion` | Antes de declarar algo terminado, y antes de commitear. |
 | 3 · Verificación | `pre-push-qa` | Los chequeos de lint, tipos y tests. Por commit, con `--scope static`; completo, antes del push. |
-| 3 · Verificación | `hermes-profile-audit` | Se audita un perfil del fleet: config declarado contra realidad, plugins, memoria y logs. |
-| 4 · Commit | `fleet-pair` | Cierra cada unidad de trabajo: el gate de la fase 3 primero, el commit después. Explícita. |
-| 4 · Commit | `work-unit-commits` | Antes de cada commit: qué va y con qué mensaje. |
-| 5 · Push | `pre-push-qa` | Antes de cada `git push` o `gh pr create`. El marcador se genera **después** del commit. |
-| 5 · Push | `cognitive-doc-design` | Al escribir el cuerpo de un PR. |
-| 6 · Cierre | `session-handoff` | Al cerrar sesión, antes de compactar contexto o al traspasar trabajo a otro agente. |
+| 3 · Verificación | `systematic-debugging` | Cuando lo que falla es el gate: un test rojo o un error de tipos. |
+| 4 · Auditoría | `hermes-profile-audit` | Se audita un perfil del fleet: config declarado contra realidad, plugins, memoria y logs. |
+| 4 · Auditoría | `hermes-fleet-audit` | Se audita el fleet completo: inventario de skills por perfil, drift, uso real, memoria y plugins. |
+| 5 · Commit | `fleet-pair` | Cierra cada unidad de trabajo: el gate de la fase 3 primero, el commit después. Explícita. |
+| 5 · Commit | `work-unit-commits` | Antes de cada commit: qué va y con qué mensaje. |
+| 6 · Push | `pre-push-qa` | Antes de cada `git push` o `gh pr create`. El marcador se genera **después** del commit. |
+| 6 · Push | `cognitive-doc-design` | Al escribir el cuerpo de un PR. |
+| 7 · Cierre | `session-handoff` | Al cerrar sesión, antes de compactar contexto o al traspasar trabajo a otro agente. |
 
 Tres cosas que el orden no captura y conviene saber:
 

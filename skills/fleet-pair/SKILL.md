@@ -14,7 +14,7 @@ metadata:
 ## En la cadena
 
 Fase 2 — Implementación: se escribe el código, en pasos testeados.
-Fase 4 — Commit: cada unidad de trabajo se cierra con el gate de la fase 3 y
+Fase 5 — Commit: cada unidad de trabajo se cierra con el gate de la fase 3 y
 después el commit.
 Explícita: se invoca con una historia ya refinada por `fleet-story`.
 Orden completo: [`CHAIN.md`](../fleet-conventions/CHAIN.md).

@@ -12,6 +12,8 @@ license: MIT
 Fase 2 — Implementación. Condicional: se dispara cuando aparece un bug, en cualquier
 momento del trabajo. No espera al push: el gate de `pre-push-qa` solo ve lint, tipos y
 tests, no bugs de lógica.
+Fase 3 — Verificación. También entra acá cuando lo que falla es el gate: un test rojo
+o un error de tipos es un bug, y se depura antes de tocar el commit.
 Orden completo: [`CHAIN.md`](../fleet-conventions/CHAIN.md).
 
 ## Overview

@@ -10,7 +10,7 @@ metadata:
 ## En la cadena
 
 Fase 1 — Diseño: para partir el trabajo en commits antes de implementar.
-Fase 4 — Commit: antes de cada `git commit`, para decidir qué va en este commit.
+Fase 5 — Commit: antes de cada `git commit`, para decidir qué va en este commit.
 Orden completo: [`CHAIN.md`](../fleet-conventions/CHAIN.md).
 
 ## When to Use

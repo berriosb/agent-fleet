@@ -30,7 +30,7 @@ that parses is not evidence that anything works.
 
 ## En la cadena
 
-Fase 3 — Verificación. Condicional: se dispara cuando se audita el estado del
+Fase 4 — Auditoría. Condicional: se dispara cuando se audita el estado del
 fleet completo — después de un `hermes update`, cuando un perfil se comporta
 mal, o en un barrido periodico.
 Orden completo: [`CHAIN.md`](../fleet-conventions/CHAIN.md).

@@ -82,16 +82,18 @@ Fase 2  fleet-pair                   ← la historia implementada en pasos teste
           ↓
 Fase 3  verification-before-completion ← ¿terminó? evidencia fresca, no afirmaciones
         pre-push-qa (chequeos)       ← ¿está sano? lint + types + tests, local, sin secrets
-        hermes-profile-audit         ← auditar UN perfil del fleet
+        systematic-debugging         ← cuando lo que falla es el gate
+          ↓
+Fase 4  hermes-profile-audit         ← auditar UN perfil del fleet (track por evento)
         hermes-fleet-audit          ← auditar el fleet entero
           ↓
-Fase 4  fleet-pair                   ← el gate ya pasó: ahora sí, el commit
+Fase 5  fleet-pair                   ← el gate ya pasó: ahora sí, el commit
         work-unit-commits            ← ¿qué va en este commit? un comportamiento por commit
           ↓  git commit
-Fase 5  pre-push-qa (marcador)       ← el marcador se genera DESPUÉS del commit
+Fase 6  pre-push-qa (marcador)       ← el marcador se genera DESPUÉS del commit
         cognitive-doc-design         ← el cuerpo del PR
           ↓  git push
-Fase 6  session-handoff              ← ¿cierras sesión o traspasas? estado persistido en disco
+Fase 7  session-handoff              ← ¿cierras sesión o traspasas? estado persistido en disco
 ```
 
 Las fases 2, 3 y 4 se repiten **por unidad de trabajo**: se escribe el código, el gate

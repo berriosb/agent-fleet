@@ -19,7 +19,7 @@ metadata:
 
 ## En la cadena
 
-Fase 3 — Verificación. Condicional: se dispara cuando se audita el estado de un
+Fase 4 — Auditoría. Condicional: se dispara cuando se audita el estado de un
 perfil del fleet — antes o después de un `hermes update`, cuando un perfil se
 comporta mal, o en un barrido periodico de los cuatro perfiles.
 Orden completo: [`CHAIN.md`](../fleet-conventions/CHAIN.md).

@@ -40,7 +40,7 @@ Running `pre-push-qa` in any terminal runs stack detection, linters, tests, secu
 ## En la cadena
 
 Fase 3 — Verificación: los chequeos de lint, tipos y tests.
-Fase 5 — Push: el marcador de verificación, que se genera **después** del commit.
+Fase 6 — Push: el marcador de verificación, que se genera **después** del commit.
 Orden completo: [`CHAIN.md`](../fleet-conventions/CHAIN.md).
 
 ## When to use this skill
