@@ -91,10 +91,12 @@ una vez y después todos los commits", es "el gate en cada commit". El orden de 
 es el de una repetición, no el de una lista lineal.
 
 **6. El skip de `pre-push-qa` es local.** "Just commit" / "skip review" apagan el review
-con IA y el auto-fix, y el gate entero solo cuando el diff es de documentación o el repo
-es un sandbox. **Nunca apagan `verification-before-completion`**: es otra skill, en otra
-fase, y es la evidencia de cada afirmación. Si el usuario quiere pushear sin verificar,
-se dice en voz alta y se anota que el push fue sin verificar.
+con IA y el auto-fix. El gate entero se saltea con diff de documentación, con un repo
+sandbox, o si el usuario lo pide — y en ese último caso se dice en voz alta que el push
+fue sin verificar. **Nunca apagan `verification-before-completion`**: es otra skill, en
+otra fase, y es la evidencia de cada afirmación. Si el gate se salteó, no se puede decir
+"los tests pasan": se dice "el gate se salteó a pedido del usuario" y la afirmación queda
+sin hacer.
 
 ## Qué NO define este orden
 

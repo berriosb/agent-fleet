@@ -59,13 +59,14 @@ Load `pre-push-qa` whenever any of your agents says one of:
 | What you skip | When |
 |---|---|
 | The AI review (Step 3) and the auto-fix (Step 4) | The user said "no review" / "just push" / "skip the review". |
-| The whole gate (Step 2) | The change is docs-only (whitelist: `*.md`, `*.mdx`, `docs/**`, `**/*.txt`, `.github/ISSUE_TEMPLATE/**`) or the repo is a sandbox / spike that won't reach a real CI. |
+| The whole gate (Step 2) | The change is docs-only (whitelist: `*.md`, `*.mdx`, `docs/**`, `**/*.txt`, `.github/ISSUE_TEMPLATE/**`), or the repo is a sandbox / spike that won't reach a real CI. |
+| The whole gate (Step 2), with a warning | The user explicitly asked to skip verification. It is their call — but say out loud that the push went in unverified, and record it. |
 
 **What you can never skip:** `verification-before-completion`. It is a different
 skill, in a different phase, and it is the evidence behind every claim you make.
-"Just commit" silences the AI review; it does not silence the evidence. If the user
-really wants to push without verification, say so out loud and record that the push
-was unverified — never drop the check silently.
+"Just commit" silences the AI review; it does not silence the evidence. If the gate
+was skipped, you still cannot say "the tests pass" — you say "the gate was skipped
+at the user's request" and leave the claim unmade.
 
 The static + tests in Step 2 are the load-bearing part of this skill. Everything else
 in it is optional.
