@@ -57,7 +57,7 @@ no una regla: lo que no se negocia es la razón de cada fila.
 | 5 · Push | El más capaz, una sola vez | El cuerpo del PR y el review es donde el modelo caro rinde. |
 | 6 · Cierre | El que sea | Volcar el estado a disco no requiere criterio. |
 
-## Cinco reglas que el orden no puede capturar
+## Seis reglas que el orden no puede capturar
 
 **1. `verification-before-completion` es una puerta, no un paso.** Se dispara en cada
 afirmación de éxito, no una vez al final: antes de commitear, antes de pasar a la tarea
@@ -89,6 +89,12 @@ antes del push, y es el que escribe el marcador de la fase 5.
 Esto es lo que hace que la fase 3 preceda a la fase 4 sin contradecirse: no es "el gate
 una vez y después todos los commits", es "el gate en cada commit". El orden de las fases
 es el de una repetición, no el de una lista lineal.
+
+**6. El skip de `pre-push-qa` es local.** "Just commit" / "skip review" apagan el review
+con IA y el auto-fix, y el gate entero solo cuando el diff es de documentación o el repo
+es un sandbox. **Nunca apagan `verification-before-completion`**: es otra skill, en otra
+fase, y es la evidencia de cada afirmación. Si el usuario quiere pushear sin verificar,
+se dice en voz alta y se anota que el push fue sin verificar.
 
 ## Qué NO define este orden
 

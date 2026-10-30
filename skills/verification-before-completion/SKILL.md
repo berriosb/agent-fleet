@@ -126,3 +126,12 @@ Skip any step = lying, not verifying
 - Paraphrases and synonyms
 - Implications of success
 - ANY communication suggesting completion/correctness
+
+## No Skip
+
+This skill has **no skip**. "Just commit", "skip review" and "no verification" turn
+off the AI review of `pre-push-qa`; they do not turn off the evidence behind a claim.
+
+If the user genuinely wants to proceed without verification, say so explicitly and
+record that the work was pushed unverified. Do not drop the check silently and do not
+report it as verified.

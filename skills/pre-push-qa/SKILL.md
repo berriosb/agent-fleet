@@ -54,10 +54,21 @@ Load `pre-push-qa` whenever any of your agents says one of:
 - also load proactively before `delegate_task` work that will commit, or before running
   `hermes-agent code` with autoCommit=true
 
-**Skip this skill when:**
-- The user said "no verification" / "skip review" / "just commit"
-- The change is docs-only (whitelist: `*.md`, `*.mdx`, `docs/**`, `**/*.txt`, `.github/ISSUE_TEMPLATE/**`)
-- The repo is a sandbox / spike that won't reach a real CI
+**Skip parts of this skill — never the whole thing by accident:**
+
+| What you skip | When |
+|---|---|
+| The AI review (Step 3) and the auto-fix (Step 4) | The user said "no review" / "just push" / "skip the review". |
+| The whole gate (Step 2) | The change is docs-only (whitelist: `*.md`, `*.mdx`, `docs/**`, `**/*.txt`, `.github/ISSUE_TEMPLATE/**`) or the repo is a sandbox / spike that won't reach a real CI. |
+
+**What you can never skip:** `verification-before-completion`. It is a different
+skill, in a different phase, and it is the evidence behind every claim you make.
+"Just commit" silences the AI review; it does not silence the evidence. If the user
+really wants to push without verification, say so out loud and record that the push
+was unverified — never drop the check silently.
+
+The static + tests in Step 2 are the load-bearing part of this skill. Everything else
+in it is optional.
 
 ## Inputs the agent must have
 
