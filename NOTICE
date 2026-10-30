@@ -25,5 +25,13 @@ Obtained from: https://github.com/Gentleman-Programming/gentle-ai
   - skills/work-unit-commits
   - skills/cognitive-doc-design
 
+fleet-backlog, fleet-story, fleet-pair
+Copyright (c) 2026 Nicolas Schurmann (nschurmann/hola-ai)
+Licensed under the MIT License. See LICENSES/MIT-nschurmann-hola-ai.txt
+Obtained from: https://github.com/nschurmann/hola-ai
+  - skills/backlog   (renamed to fleet-backlog)
+  - skills/story     (renamed to fleet-story)
+  - skills/pair      (renamed to fleet-pair)
+
 This product includes software developed at berriosb/pre-push-qa, also MIT licensed.
 --------------------------------------------------------------------------------

@@ -18,8 +18,11 @@ verifica que ambas cosas coincidan: el orden no puede quedar solo en un diagrama
 | 0 · Base | `hermes-agent` | Al configurar, extender, depurar o auditar Hermes mismo. |
 | 3 · Verificación | `hermes-fleet-audit` | Al auditar el fleet completo: inventario de skills por perfil, drift, uso real, memoria y plugins. |
 | 1 · Diseño | `fleet-interview` | Antes de implementar algo no trivial o con decisiones abiertas. |
+| 1 · Diseño | `fleet-backlog` | Al partir una idea en historias de usuario. Explícita. |
+| 1 · Diseño | `fleet-story` | Al refinar UNA historia: criterios de aceptación y out of scope. Explícita. |
 | 1 · Diseño | `work-unit-commits` | Para partir el trabajo en commits antes de implementar. |
 | 1 · Diseño | `domain-modeling` | Al cambiar vocabulario del dominio o escribir un ADR. |
+| 2 · Implementación | `fleet-pair` | Al implementar una historia refinada, en pasos testeados. Explícita. |
 | 2 · Implementación | `systematic-debugging` | Ante cualquier bug, fallo de test o error inesperado (investigar causa raíz antes de parchar). |
 | 2 · Implementación | `cognitive-doc-design` | Al escribir docs, README o notas de arquitectura. |
 | 3 · Verificación | `verification-before-completion` | Antes de declarar algo terminado, y antes de commitear. |
@@ -39,6 +42,11 @@ Tres cosas que el orden no captura y conviene saber:
   con `STALE MARKER ERROR`.
 - `systematic-debugging` **no espera al push**: el gate solo ve lint, tipos y tests, no
   bugs de lógica.
+
+`fleet-backlog`, `fleet-story` y `fleet-pair` se invocan **por nombre**: arrancan un
+flujo con checkpoints humanos y el agente no las dispara solo. El modelo que conviene
+usar en cada fase está en
+[`skills/fleet-conventions/CHAIN.md`](skills/fleet-conventions/CHAIN.md).
 
 Instalación global (todos los agentes de la máquina):
 

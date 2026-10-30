@@ -24,6 +24,9 @@ mcode, y cualquier otro cliente del [estándar Agent Skills](https://agentskills
 | `skills/fleet-conventions/CHAIN.md` | El orden canónico de las skills, por fases. Fuente de verdad del encadenado. |
 | `skills/pre-push-qa/` | Compuerta de calidad antes del push. Detecta el stack y corre lint + tests. |
 | `skills/fleet-interview/` | Interroga el árbol de decisiones antes de implementar. |
+| `skills/fleet-backlog/` | Parte una idea en historias de usuario verticales, de una línea cada una. |
+| `skills/fleet-story/` | Refina UNA historia: criterios de aceptación, out of scope y plan mínimo. |
+| `skills/fleet-pair/` | Escribe el código en pasos testeados: un test, código mínimo, verde. |
 | `skills/work-unit-commits/` | Un commit = un comportamiento entregable. Tests y docs con su código. |
 | `skills/systematic-debugging/` | Causa raíz antes de parchar. Reproducción Red-Green ante cualquier bug o fallo de tests. |
 | `skills/hermes-profile-audit/` | Auditoría de un perfil de Hermes: config declarado contra realidad, plugins, memoria y logs. |
@@ -54,10 +57,13 @@ lineal: hay fases transversales, condicionales y repetibles.
 Fase 0  fleet-conventions            ← reglas universales, se cargan una vez y rigen todo
           ↓
 Fase 1  fleet-interview              ← ¿qué quieres realmente? decisiones resueltas antes de código
+        fleet-backlog                ← la idea partida en historias verticales (explícita)
+        fleet-story                  ← UNA historia refinada: criterios + out of scope (explícita)
         domain-modeling              ← el vocabulario que cristalizó, por escrito
         work-unit-commits             ← el trabajo partido en commits antes de implementar
           ↓
-Fase 2  systematic-debugging         ← bug o comportamiento inesperado, cuando aparece
+Fase 2  fleet-pair                   ← la historia implementada en pasos testeados (explícita)
+        systematic-debugging         ← bug o comportamiento inesperado, cuando aparece
         cognitive-doc-design         ← docs, READMEs, notas de arquitectura
           ↓
 Fase 3  verification-before-completion ← ¿terminó? evidencia fresca, no afirmaciones
@@ -70,6 +76,11 @@ Fase 5  pre-push-qa (marcador)       ← el marcador se genera DESPUÉS del comm
           ↓  git push
 Fase 6  session-handoff              ← ¿cierras sesión o traspasas? estado persistido en disco
 ```
+
+`fleet-backlog`, `fleet-story` y `fleet-pair` se invocan **por nombre**: arrancan un
+flujo con checkpoints humanos, así que el agente no las dispara solo. El modelo que
+conviene usar en cada fase está en la tabla de
+[`CHAIN.md`](skills/fleet-conventions/CHAIN.md).
 
 Tres reglas que el diagrama no puede mostrar:
 
@@ -207,6 +218,11 @@ Orden completo en `skills/fleet-conventions/CHAIN.md`.
 8. Antes de cada push: `pre-push-qa`. (fase 5)
 9. Al cerrar sesión o compactar contexto: `session-handoff`. (fase 6)
 ```
+
+`fleet-backlog`, `fleet-story` y `fleet-pair` **no van en la lista**: se invocan por
+nombre (`/fleet-backlog`, `/fleet-story`, `/fleet-pair`) porque arrancan un flujo con
+checkpoints humanos. Declararlas acá las volvería disparables por el agente, que es lo
+contrario de lo que quieren.
 
 ## Cómo funciona el gate de `pre-push-qa`
 

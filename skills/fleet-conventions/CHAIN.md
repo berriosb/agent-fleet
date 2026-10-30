@@ -19,8 +19,11 @@ Una fase es un momento del trabajo. Cada skill pertenece a al menos una.
 | 0 | Base | `fleet-conventions` | Siempre, antes de cualquier otra cosa. Reglas transversales. |
 | 0 | Base | `hermes-agent` | Se configura, extiende, depura o audita Hermes mismo: el guia de operacion del vehiculo. |
 | 1 | Diseño | `fleet-interview` | La tarea no es trivial o tiene decisiones abiertas. |
+| 1 | Diseño | `fleet-backlog` | Se parte una idea en historias de usuario. Explícita. |
+| 1 | Diseño | `fleet-story` | Se refina UNA historia: criterios de aceptación y out of scope. Explícita. |
 | 1 | Diseño | `work-unit-commits` | Para partir el trabajo en commits antes de implementar. |
 | 1 | Diseño | `domain-modeling` | Una decisión cambió el vocabulario, o va un ADR. |
+| 2 | Implementación | `fleet-pair` | Se implementa una historia refinada, en pasos testeados. Explícita. |
 | 2 | Implementación | `systematic-debugging` | Apareció un bug, un test falla, algo se comporta raro. |
 | 2 | Implementación | `cognitive-doc-design` | Escribís un doc, un README, una nota de arquitectura. |
 | 3 | Verificación | `verification-before-completion` | Antes de afirmar que algo está terminado, y antes de commitear. |
@@ -32,7 +35,26 @@ Una fase es un momento del trabajo. Cada skill pertenece a al menos una.
 | 5 | Push | `cognitive-doc-design` | Escribís el cuerpo del PR. |
 | 6 | Cierre | `session-handoff` | Cerrás sesión, compactás contexto o traspasás la tarea. |
 
-## Tres reglas que el orden no puede capturar
+Tres de las skills se invocan **explícitamente**: `fleet-backlog`, `fleet-story` y
+`fleet-pair`. Arrancan un flujo con checkpoints humanos, así que el agente no las
+dispara por su cuenta: se piden por nombre. Declararlas en el archivo de
+instrucciones del agente las deja disponibles sin que se carguen solas.
+
+## El modelo por fase
+
+El modelo que rinde en una fase no es el mismo que en otra. Esta tabla es una guía,
+no una regla: lo que no se negocia es la razón de cada fila.
+
+| Fase | Modelo | Por qué |
+|---|---|---|
+| 1 · Diseño | El más capaz que tengas disponible | Razonar sobre alcance, requisitos y criterios de aceptación no tolera un modelo flojo. Acá el costo se paga una vez. |
+| 2 · Implementación | El más rápido que siga siendo bueno | El loop es test → código mínimo → verde. La latencia se paga en cada iteración, y son muchas. |
+| 3 · Verificación | El que sea: son comandos, no razonamiento | Correr lint, tipos y tests no necesita un modelo. |
+| 4 · Commit | El que sea | El mensaje se decide con `work-unit-commits`. |
+| 5 · Push | El más capaz, una sola vez | El cuerpo del PR y el review es donde el modelo caro rinde. |
+| 6 · Cierre | El que sea | Volcar el estado a disco no requiere criterio. |
+
+## Cuatro reglas que el orden no puede capturar
 
 **1. `verification-before-completion` es una puerta, no un paso.** Se dispara en cada
 afirmación de éxito, no una vez al final: antes de commitear, antes de pasar a la tarea
@@ -47,6 +69,13 @@ corre antes del commit, el marcador queda viejo y el push se bloquea con
 **3. `systematic-debugging` no espera al push.** Se dispara durante la implementación, en
 cualquier momento. El gate de `pre-push-qa` solo ve lint, tipos y tests: un bug de lógica
 nunca llega ahí. Si el bug aparece antes del commit, se depura antes del commit.
+
+**4. `fleet-interview` y `fleet-backlog` no son lo mismo.** `fleet-interview` interroga el
+árbol de decisiones de una tarea: son las decisiones abiertas de lo que hay que construir.
+`fleet-backlog` parte una idea en historias de usuario; `fleet-story` refina **una** de
+ellas. Cuando la tarea es una historia sola, `fleet-story` alcanza y `fleet-interview`
+sobra. Cuando la tarea es un sistema entero, `fleet-backlog` va primero y `fleet-interview`
+decide lo que las historias no alcanzan a decidir.
 
 ## Qué NO define este orden
 

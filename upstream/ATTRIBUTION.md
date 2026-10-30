@@ -22,8 +22,11 @@ licencia de su origen. Los avisos exigidos por Apache-2.0 están en `NOTICE`.
 | `systematic-debugging` | [`obra/superpowers`](https://github.com/obra/superpowers) `skills/systematic-debugging` | MIT | Incluye guías de soporte (`root-cause-tracing.md`, `defense-in-depth.md`, `condition-based-waiting.md`). Adaptada para eliminar prefijos `superpowers:*`. Frontmatter normalizado (se agrega `version`). Se agrega la seccion "En la cadena" con la fase. |
 | `domain-modeling` | [`mattpocock/skills`](https://github.com/mattpocock/skills) `skills/engineering/domain-modeling` | MIT | Incluye plantillas `GLOSSARY-FORMAT.md` y `ADR-FORMAT.md`. Frontmatter normalizado (se agrega `license` y `version`). Se agrega la seccion "En la cadena" con la fase. |
 | `fleet-interview` | [`mattpocock/skills`](https://github.com/mattpocock/skills) `skills/productivity/grilling` | MIT | Renombrada de `grilling` (directorio y `name` en frontmatter) para no colisionar con el original upstream. Description reescrita para que el trigger coincida con `AGENTS.md`. Frontmatter normalizado (se agrega `license` y `version`). Se agrega la seccion "En la cadena" con la fase. Ver nota abajo. |
-| `work-unit-commits` | [`Gentleman-Programming/gentle-ai`](https://github.com/Gentleman-Programming/gentle-ai) `skills/work-unit-commits` | Apache-2.0 | Sección "ODD Relationship" reemplazada por "Evidence and Thresholds": se elimina el vocabulario de un framework ajeno (ODD) y se conservan las reglas exigibles. Frontmatter normalizado (`version` pasa de `metadata` a campo de primer nivel). Se agrega la seccion "En la cadena" con las fases. |
+| `work-unit-commits` | [`Gentleman-Programming/gentle-ai`](https://github.com/Gentleman-Programming/gentle-ai) `skills/work-unit-commits` | Apache-2.0 | Sección "ODD Relationship" reemplazada por "Evidence and Thresholds": se elimina el vocabulario de un framework ajeno (ODD) y se conservan las reglas exigibles. Frontmatter normalizado (`version` pasa de `metadata` a campo de primer nivel). Se agrega la seccion "En la cadena" con las fases. Se agrega la regla "Test before code in the diff" y la seccion que la explica. |
 | `cognitive-doc-design` | [`Gentleman-Programming/gentle-ai`](https://github.com/Gentleman-Programming/gentle-ai) `skills/cognitive-doc-design` | Apache-2.0 | Frontmatter normalizado (`version` pasa de `metadata` a campo de primer nivel). Se agrega la seccion "En la cadena" con las fases. Cuerpo sin cambios. |
+| `fleet-backlog` | [`nschurmann/hola-ai`](https://github.com/nschurmann/hola-ai) `skills/backlog` | MIT | Renombrada de `backlog` (directorio y `name`) para no colisionar con el original upstream. Se agrega la seccion "En la cadena" con la fase. `CLAUDE.md` pasa a ser `AGENTS.md`. El tracker puede ser un `backlog.md` en el repo. Se agrega la regla "una cosa por historia". |
+| `fleet-story` | [`nschurmann/hola-ai`](https://github.com/nschurmann/hola-ai) `skills/story` | MIT | Renombrada de `story` (directorio y `name`). Se agrega la seccion "En la cadena" con la fase. Se agrega la regla "out of scope is not optional". |
+| `fleet-pair` | [`nschurmann/hola-ai`](https://github.com/nschurmann/hola-ai) `skills/pair` | MIT | Renombrada de `pair` (directorio y `name`). Se agrega la seccion "En la cadena" con la fase. El commit pasa a ser del agente siguiendo `work-unit-commits` (el upstream prohibe commitear). `/code-review` se reemplaza por `verification-before-completion`. Se agrega la regla "el test va antes que la implementacion en el diff". |
 
 ### Por qué `grilling` → `fleet-interview`
 
@@ -33,6 +36,33 @@ instalar `npx skills add mattpocock/skills` más adelante no deje dos skills con
 compitiendo en el mismo agente.
 
 Si preferís el nombre original, renombrá el directorio y el campo `name` del frontmatter.
+
+### Por qué `backlog`, `story` y `pair` → `fleet-backlog`, `fleet-story` y `fleet-pair`
+
+Mismo motivo que con `grilling`: `backlog`, `story` y `pair` son nombres genéricos que
+colisionarian con cualquier otro set de skills instalado en la misma máquina. El prefijo
+`fleet-` los deja en la familia y no compiten.
+
+### `nschurmann/hola-ai`: el loop que faltaba en la cadena
+
+El upstream (`hola-ai`, MIT) publica tres skills que cubren el tramo de la cadena que
+este repo no tenía: **partir una idea en historias verticales, refinar una, y escribir
+el código en pasos testeados**. Antes de esto, la cadena saltaba de la fase 1 (diseño)
+a la fase 4 (commit) sin una skill que dijera cómo se escribe el código.
+
+Las tres se adapteon al contrato del repo, y las diferencias con el upstream son
+deliberadas:
+
+| Upstream | acá | Por qué |
+|---|---|---|
+| `backlog` escribe en `CLAUDE.md` | `AGENTS.md` | El repo usa `AGENTS.md` como contrato. |
+| `story` no nombra el tracker | el tracker es del usuario: GitHub Issues, Jira, Trello, o un `backlog.md` | El upstream exige un tracker configurado; esta versión funciona sin uno. |
+| `pair` dice "Never commit" | propone el mensaje y commitea siguiendo `work-unit-commits` | En este repo el agente commitea, con la aprobación del humano. El commit sigue siendo un checkpoint. |
+| `pair` sugiere `/code-review` | aplica `verification-before-completion` | El repo no tiene `code-review` (está en el roadmap) y sí tiene la puerta de verificación. |
+| `pair` no menciona el orden del test en el diff | "el test va antes que la implementacion" | Es la forma de detectar al agente que toca los tests para que pasen. La regla también quedó en `work-unit-commits`, y `scripts/check-skills.py` verifica que no se venza en uno de los dos lados. |
+
+El `disable-model-invocation: true` del upstream se conserva: las tres arrancan un flujo
+con checkpoints humanos y el agente no debe dispararlas solo.
 
 ## Auditoría 2026-10-20
 
@@ -90,11 +120,12 @@ escribe antes del push) y `fleet-conventions` y `domain-modeling` no aparecian.
 ## Licencias upstream completas
 
 - **MIT** — `pre-push-qa`, `verification-before-completion`, `systematic-debugging`,
-  `domain-modeling`, `fleet-interview`
+  `domain-modeling`, `fleet-interview`, `fleet-backlog`, `fleet-story`, `fleet-pair`
 - **Apache-2.0** — `work-unit-commits`, `cognitive-doc-design`
 
-El texto completo de ambas licencias está en [`LICENSES/`](LICENSES/):
+El texto completo de cada licencia está en [`LICENSES/`](LICENSES/):
 `LICENSES/MIT-obra-superpowers.txt`, `LICENSES/MIT-mattpocock.txt`,
+`LICENSES/MIT-nschurmann-hola-ai.txt`,
 `LICENSES/Apache-2.0-gentleman-programming.txt`.
 
 ## Cómo actualizar una skill desde upstream
