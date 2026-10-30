@@ -17,16 +17,35 @@ licencia de su origen. Los avisos exigidos por Apache-2.0 están en `NOTICE`.
 | Skill | Origen | Licencia | Cambios |
 |---|---|---|---|
 | `pre-push-qa` | Propio (historial migrado desde `berriosb/pre-push-qa`) | MIT | developing. Ver "Auditoría 2026-10-20". |
-| `hermes-agent` | [`NousResearch/hermes-agent`](https://github.com/NousResearch/hermes-agent) `skills/autonomous-ai-agents/hermes-agent` | MIT | Copia exacta del upstream v3.2.0 (fork `berriosb/hermes-agent`), mas la seccion "En la cadena" con la fase. Frontmatter normalizado (`version`, `license`, `platforms`, `metadata.hermes`). Las referencias propias del fleet se movieron a la skill `hermes-fleet-audit` para que esta siga siguiendo al upstream. |
-| `verification-before-completion` | [`obra/superpowers`](https://github.com/obra/superpowers) `skills/verification-before-completion` | MIT | Frontmatter normalizado (se agrega `license` y `version`). Se agrega la seccion "En la cadena" con la fase. Cuerpo sin cambios. |
-| `systematic-debugging` | [`obra/superpowers`](https://github.com/obra/superpowers) `skills/systematic-debugging` | MIT | Incluye guías de soporte (`root-cause-tracing.md`, `defense-in-depth.md`, `condition-based-waiting.md`). Adaptada para eliminar prefijos `superpowers:*`. Frontmatter normalizado (se agrega `version`). Se agrega la seccion "En la cadena" con la fase. |
-| `domain-modeling` | [`mattpocock/skills`](https://github.com/mattpocock/skills) `skills/engineering/domain-modeling` | MIT | Incluye plantillas `GLOSSARY-FORMAT.md` y `ADR-FORMAT.md`. Frontmatter normalizado (se agrega `license` y `version`). Se agrega la seccion "En la cadena" con la fase. |
+| `hermes-agent` | [`NousResearch/hermes-agent`](https://github.com/NousResearch/hermes-agent) `skills/autonomous-ai-agents/hermes-agent` | MIT | Copia exacta del upstream v3.2.0 (fork `berriosb/hermes-agent`), mas la seccion "En la cadena" con la fase. Frontmatter normalizado (`version`, `license`, `platforms`, `metadata.hermes`). Las referencias propias del fleet se movieron a la skill `hermes-fleet-audit` para que esta siga siguiendo al upstream. Description reescrita con ruteo explicito (ver "Ruteo por description"). |
+| `verification-before-completion` | [`obra/superpowers`](https://github.com/obra/superpowers) `skills/verification-before-completion` | MIT | Frontmatter normalizado (se agrega `license` y `version`). Se agrega la seccion "En la cadena" con la fase. Se agrega la seccion "No Skip". Description reescrita con ruteo explicito (ver "Ruteo por description"). El resto del cuerpo queda sin cambios. |
+| `systematic-debugging` | [`obra/superpowers`](https://github.com/obra/superpowers) `skills/systematic-debugging` | MIT | Incluye guías de soporte (`root-cause-tracing.md`, `defense-in-depth.md`, `condition-based-waiting.md`). Adaptada para eliminar prefijos `superpowers:*`. Frontmatter normalizado (se agrega `version`). Se agrega la seccion "En la cadena" con la fase. Description reescrita con ruteo explicito (ver "Ruteo por description"). |
+| `domain-modeling` | [`mattpocock/skills`](https://github.com/mattpocock/skills) `skills/engineering/domain-modeling` | MIT | Incluye plantillas `GLOSSARY-FORMAT.md` y `ADR-FORMAT.md`. Frontmatter normalizado (se agrega `license` y `version`). Se agrega la seccion "En la cadena" con la fase. Description reescrita con ruteo explicito (ver "Ruteo por description"). |
 | `fleet-interview` | [`mattpocock/skills`](https://github.com/mattpocock/skills) `skills/productivity/grilling` | MIT | Renombrada de `grilling` (directorio y `name` en frontmatter) para no colisionar con el original upstream. Description reescrita para que el trigger coincida con `AGENTS.md`. Frontmatter normalizado (se agrega `license` y `version`). Se agrega la seccion "En la cadena" con la fase. Ver nota abajo. |
-| `work-unit-commits` | [`Gentleman-Programming/gentle-ai`](https://github.com/Gentleman-Programming/gentle-ai) `skills/work-unit-commits` | Apache-2.0 | Sección "ODD Relationship" reemplazada por "Evidence and Thresholds": se elimina el vocabulario de un framework ajeno (ODD) y se conservan las reglas exigibles. Frontmatter normalizado (`version` pasa de `metadata` a campo de primer nivel). Se agrega la seccion "En la cadena" con las fases. Se agrega la regla "Test before code in the diff" y la seccion que la explica. |
-| `cognitive-doc-design` | [`Gentleman-Programming/gentle-ai`](https://github.com/Gentleman-Programming/gentle-ai) `skills/cognitive-doc-design` | Apache-2.0 | Frontmatter normalizado (`version` pasa de `metadata` a campo de primer nivel). Se agrega la seccion "En la cadena" con las fases. Cuerpo sin cambios. |
+| `work-unit-commits` | [`Gentleman-Programming/gentle-ai`](https://github.com/Gentleman-Programming/gentle-ai) `skills/work-unit-commits` | Apache-2.0 | Sección "ODD Relationship" reemplazada por "Evidence and Thresholds": se elimina el vocabulario de un framework ajeno (ODD) y se conservan las reglas exigibles. Frontmatter normalizado (`version` pasa de `metadata` a campo de primer nivel). Se agrega la seccion "En la cadena" con las fases. Se agrega la regla "Test with the code" y la seccion "The test's diff comes first". Description reescrita con ruteo explicito (ver "Ruteo por description"). |
+| `cognitive-doc-design` | [`Gentleman-Programming/gentle-ai`](https://github.com/Gentleman-Programming/gentle-ai) `skills/cognitive-doc-design` | Apache-2.0 | Frontmatter normalizado (`version` pasa de `metadata` a campo de primer nivel). Se agrega la seccion "En la cadena" con las fases. La seccion "PR and Review Docs" pasa a definir la forma canonica del cuerpo del PR, que `pre-push-qa` replica. Description reescrita con ruteo explicito (ver "Ruteo por description"). |
 | `fleet-backlog` | [`nschurmann/hola-ai`](https://github.com/nschurmann/hola-ai) `skills/backlog` | MIT | Renombrada de `backlog` (directorio y `name`) para no colisionar con el original upstream. Se agrega la seccion "En la cadena" con la fase. `CLAUDE.md` pasa a ser `AGENTS.md`. El tracker puede ser un `backlog.md` en el repo. Se agrega la regla "una cosa por historia". |
 | `fleet-story` | [`nschurmann/hola-ai`](https://github.com/nschurmann/hola-ai) `skills/story` | MIT | Renombrada de `story` (directorio y `name`). Se agrega la seccion "En la cadena" con la fase. Se agrega la regla "out of scope is not optional". |
-| `fleet-pair` | [`nschurmann/hola-ai`](https://github.com/nschurmann/hola-ai) `skills/pair` | MIT | Renombrada de `pair` (directorio y `name`). Se agrega la seccion "En la cadena" con la fase. El commit pasa a ser del agente siguiendo `work-unit-commits` (el upstream prohibe commitear). `/code-review` se reemplaza por `verification-before-completion`. Se agrega la regla "el test va antes que la implementacion en el diff". |
+| `fleet-pair` | [`nschurmann/hola-ai`](https://github.com/nschurmann/hola-ai) `skills/pair` | MIT | Renombrada de `pair` (directorio y `name`). Se agrega la seccion "En la cadena" con la fase. El commit pasa a ser del agente siguiendo `work-unit-commits` (el upstream prohibe commitear), y lo precede el gate de la fase 3. `/code-review` se reemplaza por `verification-before-completion`. Se agrega la regla "el test cambia en el mismo commit que la implementacion". Description reescrita con ruteo explicito (ver "Ruteo por description"). |
+
+### Ruteo por description
+
+Todas las `description` del repo se reescribieron para que cada una diga tres cosas:
+qué hace, cuándo aplica, y **a qué skill cede el caso que no es suyo**. La razón es
+técnica, no de estilo: `CHAIN.md` es la fuente de verdad del orden, pero **`CHAIN.md` no
+se carga por `description`**. En runtime lo único que decide qué skill entra es el texto
+de la description. Con las descriptions anteriores, "voy a implementar esta feature"
+cargaba cinco skills a la vez y el agente no tenía con qué elegir.
+
+El formato es: qué hace + `Trigger:` + una serie de `NOT <caso> (<skill>)`.
+
+`scripts/check-skills.py` lo verifica con el chequeo 13: **toda description tiene que
+nombrar al menos otra skill del repo**. Es un desambiguador barato y, a diferencia de la
+prosa, se puede comprobar.
+
+El costo medido: las 15 descriptions pasan de 2.939 a ~4.300 caracteres, unos 350 tokens
+por sesión. Se pagan en cada sesión y compran que el agente no cargue cinco skills para
+una feature.
 
 ### Por qué `grilling` → `fleet-interview`
 

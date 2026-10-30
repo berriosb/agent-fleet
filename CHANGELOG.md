@@ -9,6 +9,31 @@ poder leerlo sin bucear en el historial.
 El detalle de qué se adaptó de cada upstream, y bajo qué licencia, está en
 [`upstream/ATTRIBUTION.md`](upstream/ATTRIBUTION.md).
 
+## 2026-10-30 — La cadena deja de contradecirse
+
+Una auditoría del flujo completo (con un subagente leyendo las 15 skills y pruebas
+empíricas sobre el gate) encontró que la cadena estaba bien documentada pero mal
+resuelta en runtime. Cuatro arreglos:
+
+- **El gate ahora corre antes de cada commit.** La cadena ponía el gate en la fase 3 y
+  los commits en la fase 4, pero `fleet-pair` commiteaba en cada paso verde: N commits
+  en el historial sin gate. Ahora el loop 2 → 3 → 4 se repite por unidad de trabajo, y
+  ningún commit entra sin haber pasado el gate. `fleet-pair` declara las fases 2 y 4.
+- **El cuerpo del PR tiene una sola forma.** `pre-push-qa` y `cognitive-doc-design`
+  tenían dos plantillas incompatibles, ambas en mayúsculas. `cognitive-doc-design` pasa
+  a definir la forma canónica y `pre-push-qa` la replica; el checker impide que se
+  separen.
+- **El skip de `pre-push-qa` ya no se lleva por delante la puerta.** "Just commit"
+  apagaba también `verification-before-completion`. El skip ahora es local y explícito:
+  apaga el review con IA y el auto-fix; la puerta no tiene skip.
+- **Las `description` se excluyen entre sí.** CHAIN.md no se carga por description, así
+  que la description es el único mecanismo de ruteo que existe. Cada una ahora dice a
+  qué skill cede el caso que no es suyo, y el checker 13 lo exige.
+
+También se corrigió una regla que era falsa: "el test va primero en el diff" (git ordena
+un diff por ruta, no por intención). Y se.documentó que `disable-model-invocation` no es
+parte del estándar Agent Skills: solo Claude Code lo respeta.
+
 ## 2026-10-30 — La cadena aprende a escribir código
 
 La cadena tenía un hueco: se pensaba, se partía en commits y se verificaba, pero **nadie
