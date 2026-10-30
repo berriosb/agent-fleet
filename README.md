@@ -14,13 +14,26 @@ npx skills add berriosb/agent-fleet -g
 Funciona con Claude Code, Codex, OpenCode, agy, Gemini CLI, Copilot CLI, Cursor, pi,
 mcode, y cualquier otro cliente del [estándar Agent Skills](https://agentskills.io).
 
+**Las tres skills de Hermes no van en el paquete público.** Llevan
+`metadata.internal: true`, que es lo que el CLI respeta: no aparecen en el
+descubrimiento y no se instalan. Son para la flota del autor, no para el mundo.
+Si las querés:
+
+```bash
+npx skills add berriosb/agent-fleet -g --skill hermes-agent    # una puntual
+INSTALL_INTERNAL_SKILLS=1 npx skills add berriosb/agent-fleet -g  # todas
+```
+
+En la máquina del autor, `scripts/install.sh` las enlaza igual: la distinción es
+entre el paquete público y la instalación local.
+
 ## Qué hay acá
 
 | Ruta | Qué es |
 |---|---|
 | `skills/fleet-conventions/` | Las reglas que aplican a todo agente: verificación, idioma, datos, borrado, entregables. |
-| `skills/hermes-agent/` | Guía de operación de Hermes: configurar, extender, depurar y auditar un perfil del fleet. |
-| `skills/hermes-fleet-audit/` | Auditoría del fleet: inventario de skills por perfil, drift, uso real, memoria y plugins. |
+| `skills/hermes-agent/` | Guía de operación de Hermes: configurar, extender, depurar y auditar un perfil del fleet.  (interna)|
+| `skills/hermes-fleet-audit/` | Auditoría del fleet: inventario de skills por perfil, drift, uso real, memoria y plugins.  (interna)|
 | `skills/fleet-conventions/CHAIN.md` | El orden canónico de las skills, por fases. Fuente de verdad del encadenado. |
 | `skills/pre-push-qa/` | Compuerta de calidad antes del push. Detecta el stack y corre lint + tests. |
 | `skills/fleet-interview/` | Interroga el árbol de decisiones antes de implementar. |
@@ -29,7 +42,7 @@ mcode, y cualquier otro cliente del [estándar Agent Skills](https://agentskills
 | `skills/fleet-pair/` | Escribe el código en pasos testeados: un test, código mínimo, verde. |
 | `skills/work-unit-commits/` | Un commit = un comportamiento entregable. Tests y docs con su código. |
 | `skills/systematic-debugging/` | Causa raíz antes de parchar. Reproducción Red-Green ante cualquier bug o fallo de tests. |
-| `skills/hermes-profile-audit/` | Auditoría de un perfil de Hermes: config declarado contra realidad, plugins, memoria y logs. |
+| `skills/hermes-profile-audit/` | Auditoría de un perfil de Hermes: config declarado contra realidad, plugins, memoria y logs.  (interna)|
 | `skills/verification-before-completion/` | Evidencia antes de afirmaciones. |
 | `skills/session-handoff/` | Cierre estructurado y traspaso de contexto en disco antes de compactar o rotar agentes. |
 | `skills/domain-modeling/` | Glosario y ADRs: el vocabulario compartido del proyecto. |

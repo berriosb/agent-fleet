@@ -46,6 +46,9 @@ Chequeos
 15. ruteo: cada description nombra al menos otra skill del repo, para que el
     agente sepa a que skill cederle el caso que no es suyo. CHAIN.md no se carga
     por description, asi que la description es el unico mecanismo de ruteo.
+16. las skills internas son exactamente las de `INTERNAL_SKILLS`, y cada una
+    dice `metadata.internal: true`. El CLI de skills saltea del descubrimiento
+    las que lo tienen, asi que el paquete publico no lleva las de Hermes.
 
 Uso
 ───
@@ -91,6 +94,19 @@ class SharedRule(TypedDict):
     canonical: str
     sites: list[Path]
 
+
+# Skills que no van en el paquete publico. El CLI de skills (npx skills add)
+# respeta `metadata.internal: true` y las saltea del descubrimiento, asi que
+# quedan instalables solo con `--skill <nombre>` o INSTALL_INTERNAL_SKILLS=1.
+#
+# La lista es canonica: el checker verifica que las marcadas sean exactamente
+# estas, y que ninguna otra se marque por error (una skill publica marcada
+# como interna desaparece del paquete sin que nadie lo note).
+INTERNAL_SKILLS = [
+    "hermes-agent",
+    "hermes-fleet-audit",
+    "hermes-profile-audit",
+]
 
 # Reglas que viven en mas de un SKILL.md. La forma canonica tiene que aparecer
 # en todos los sitios: una regla replicada se vence en uno de ellos sin que
@@ -493,6 +509,80 @@ def check_env_pattern(errors: list[str]) -> None:
                 errors,
                 f"{rel}: la lista de plantillas permitidas no coincide con la canonica "
                 f"({ENV_ALLOW})",
+            )
+
+
+METADATA_KEY_RE = re.compile(r"^metadata:\s*(.*)$")
+NESTED_KEY_RE = re.compile(r"^  ([A-Za-z_][A-Za-z0-9_.-]*):\s*(.*)$")
+
+
+def parse_metadata(path: Path) -> dict[str, str]:
+    """El bloque `metadata:` del frontmatter, como clave -> valor escalar.
+
+    `parse_frontmatter` solo mira el primer nivel, y `metadata:` es una clave
+    cuyo valor son las lineas indentadas de abajo. Sin PyYAML, por la regla 4
+    del repo: se toman los valores escalares de primer nivel del bloque.
+
+    Las claves del sub-bloque (por ejemplo `metadata.hermes.tags`) no se
+    leen: para lo que hace falta, un nivel alcanza.
+    """
+    content = path.read_text(encoding="utf-8")
+    match = re.match(r"^---\n(.*?)\n---\n", content, re.DOTALL)
+    if not match:
+        return {}
+
+    out: dict[str, str] = {}
+    inside = False
+    for line in match.group(1).split("\n"):
+        if not inside:
+            if METADATA_KEY_RE.match(line):
+                inside = True
+            continue
+        if not line.strip():
+            continue
+        if not line[:1].isspace():
+            break  # termina el bloque metadata
+        nested = NESTED_KEY_RE.match(line)
+        if nested:
+            out[nested.group(1)] = nested.group(2).strip().strip("\"'")
+    return out
+
+
+def check_internal_skills(errors: list[str]) -> None:
+    """Las skills internas son exactamente las de la lista, y estan marcadas.
+
+    El CLI de skills (npx skills add) saltea del descubrimiento toda skill con
+    `metadata.internal: true`. Eso las saca del paquete publico, que es lo que
+    queremos para las de Hermes. El riesgo es el contrario: una skill publica
+    marcada por error desaparece del paquete sin que nadie lo note, y una
+    interna sin marcar se instala en la maquina de cualquiera.
+    """
+    marked: dict[str, bool] = {}
+    for path in sorted(SKILLS_DIR.glob("*/SKILL.md")):
+        name = path.parent.name
+        fields, _ = parse_frontmatter(path)
+        if not fields:
+            continue
+        marked[name] = parse_metadata(path).get("internal") == "true"
+
+    for name in INTERNAL_SKILLS:
+        if name not in marked:
+            fail(errors, f"{name}: esta en INTERNAL_SKILLS pero no existe en skills/")
+        elif not marked[name]:
+            fail(
+                errors,
+                f"{name}: esta en INTERNAL_SKILLS pero su frontmatter no dice "
+                "`internal: true`. Sin eso, `npx skills add` la instala en la "
+                "maquina de cualquiera.",
+            )
+
+    for name, is_internal in sorted(marked.items()):
+        if is_internal and name not in INTERNAL_SKILLS:
+            fail(
+                errors,
+                f"{name}: el frontmatter dice `internal: true` pero no esta en "
+                "INTERNAL_SKILLS. Una skill publica marcada como interna "
+                "desaparece del paquete sin que nadie lo note.",
             )
 
 
@@ -1137,6 +1227,7 @@ def main() -> int:
     check_cjk(errors)
     check_fences(errors)
     check_env_pattern(errors)
+    check_internal_skills(errors)
     check_descriptions_route(errors)
     check_replicated_commands(errors)
     check_shared_rules(errors)

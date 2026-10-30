@@ -508,6 +508,48 @@ class TestReadmeListsSkills(ScriptTestCase):
         self.assertEqual(errors, [])
 
 
+class TestInternalSkills(ScriptTestCase):
+    script = "check-skills.py"
+
+    def _write(self, name: str, internal: bool) -> None:
+        # El frontmatter se arma a mano: `write_skill` pone el body despues de
+        # la seccion "En la cadena", y lo que se prueba aca es el frontmatter.
+        meta = "metadata:\n  internal: true\n" if internal else "metadata:\n  hermes:\n    tags: []\n"
+        skill_dir = self.root / "skills" / name
+        skill_dir.mkdir(parents=True, exist_ok=True)
+        (skill_dir / "SKILL.md").write_text(
+            f'---\nname: {name}\ndescription: "{DEFAULT_DESCRIPTION}"\n'
+            f"license: MIT\nversion: 1.0.0\n{meta}---\n\nbody\n",
+            encoding="utf-8",
+        )
+
+    def test_interna_sin_marcar_se_reporta(self) -> None:
+        self.use_root()
+        self._write("alpha", internal=False)
+        self.module.INTERNAL_SKILLS = ["alpha"]
+        errors: list[str] = []
+        self.module.check_internal_skills(errors)
+        self.assertTrue(any("no dice `internal: true`" in e for e in errors))
+
+    def test_publica_marcada_por_error_se_reporta(self) -> None:
+        self.use_root()
+        self._write("alpha", internal=True)
+        self._write("beta", internal=False)
+        self.module.INTERNAL_SKILLS = ["beta"]
+        errors: list[str] = []
+        self.module.check_internal_skills(errors)
+        self.assertTrue(any("no esta en INTERNAL_SKILLS" in e for e in errors))
+
+    def test_marcado_correcto_pasa(self) -> None:
+        self.use_root()
+        self._write("alpha", internal=True)
+        self._write("beta", internal=False)
+        self.module.INTERNAL_SKILLS = ["alpha"]
+        errors: list[str] = []
+        self.module.check_internal_skills(errors)
+        self.assertEqual(errors, [])
+
+
 class TestDescriptionsRoute(ScriptTestCase):
     script = "check-skills.py"
 

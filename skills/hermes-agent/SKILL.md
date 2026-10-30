@@ -6,6 +6,10 @@ author: Hermes Agent + Teknium
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
+  # `internal: true` oculta la skill del descubrimiento normal: `npx skills add`
+  # no la instala. Solo entra con `--skill <nombre>` o INSTALL_INTERNAL_SKILLS=1.
+  # Es lo que hace que el paquete publico del repo no lleve las skills de Hermes.
+  internal: true
   hermes:
     tags: [hermes, setup, configuration, multi-agent, spawning, cli, gateway, bots, bot-mode, features, themes, skins, desktop-plugins, tui-widgets, petdex, development]
     homepage: https://github.com/NousResearch/hermes-agent

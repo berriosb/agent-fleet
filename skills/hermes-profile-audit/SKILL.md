@@ -6,6 +6,10 @@ author: Bastian Berrios, Hermes Agent
 license: MIT
 platforms: [linux]
 metadata:
+  # `internal: true` oculta la skill del descubrimiento normal: `npx skills add`
+  # no la instala. Solo entra con `--skill <nombre>` o INSTALL_INTERNAL_SKILLS=1.
+  # Es lo que hace que el paquete publico del repo no lleve las skills de Hermes.
+  internal: true
   hermes:
     tags: [hermes, audit, config, memory, plugins, gateway, state-db, verification]
     related_skills: [hermes-agent-skill-authoring]
