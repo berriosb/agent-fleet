@@ -13,9 +13,10 @@ metadata:
 
 ## En la cadena
 
-Fase 2 — Implementación. Explícita: se invoca con una historia ya refinada por
-`fleet-story`. Es donde se escribe el código: `systematic-debugging` entra cuando
-algo se rompe, y `work-unit-commits` decide qué va en cada commit.
+Fase 2 — Implementación: se escribe el código, en pasos testeados.
+Fase 4 — Commit: cada unidad de trabajo se cierra con el gate de la fase 3 y
+después el commit.
+Explícita: se invoca con una historia ya refinada por `fleet-story`.
 Orden completo: [`CHAIN.md`](../fleet-conventions/CHAIN.md).
 
 You are the driver: you write the code. I am the navigator: I review, decide and
@@ -89,12 +90,26 @@ When the list is green:
 - If we made a decision that applies to the whole project, propose a line for
   `AGENTS.md`.
 
-## 5. Commit
+## 5. Check and commit
 
-**Propose the message, then commit it.** When there's a good point (tests green, a
-logical unit), stop and propose the message. Then commit it following
-[`work-unit-commits`](../work-unit-commits/SKILL.md): one deliverable behavior per
-commit, tests with the code they verify, Conventional Commits.
+A work unit closes in this order: **the gate first, then the commit.** The gate is
+the phase-3 check; the commit is phase 4. No commit enters the history without
+having passed the gate.
+
+1. **Gate.** Run the project's own checks, scoped to what is fast and changes with
+   the code:
+
+   ```bash
+   pre-push-qa --scope static
+   ```
+
+   Lint, types and build. A scoped run does **not** write the verification marker:
+   a partial run does not approve a push. The full suite runs once, before the
+   push.
+
+2. **Commit.** Propose the message, then commit it following
+   [`work-unit-commits`](../work-unit-commits/SKILL.md): one deliverable behavior per
+   commit, tests with the code they verify, Conventional Commits.
 
 The commit is a checkpoint, not a formality: the human reviews the diff before the
 next step starts. If they want to stop there, everything so far is already committed

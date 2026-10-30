@@ -26,9 +26,10 @@ verifica que ambas cosas coincidan: el orden no puede quedar solo en un diagrama
 | 2 · Implementación | `systematic-debugging` | Ante cualquier bug, fallo de test o error inesperado (investigar causa raíz antes de parchar). |
 | 2 · Implementación | `cognitive-doc-design` | Al escribir docs, README o notas de arquitectura. |
 | 3 · Verificación | `verification-before-completion` | Antes de declarar algo terminado, y antes de commitear. |
-| 3 · Verificación | `pre-push-qa` | Los chequeos de lint, tipos y tests. |
+| 3 · Verificación | `pre-push-qa` | Los chequeos de lint, tipos y tests. Por commit, con `--scope static`; completo, antes del push. |
 | 3 · Verificación | `hermes-profile-audit` | Se audita un perfil del fleet: config declarado contra realidad, plugins, memoria y logs. |
-| 4 · Commit | `work-unit-commits` | Antes de cada commit. |
+| 4 · Commit | `fleet-pair` | Cierra cada unidad de trabajo: el gate de la fase 3 primero, el commit después. Explícita. |
+| 4 · Commit | `work-unit-commits` | Antes de cada commit: qué va y con qué mensaje. |
 | 5 · Push | `pre-push-qa` | Antes de cada `git push` o `gh pr create`. El marcador se genera **después** del commit. |
 | 5 · Push | `cognitive-doc-design` | Al escribir el cuerpo de un PR. |
 | 6 · Cierre | `session-handoff` | Al cerrar sesión, antes de compactar contexto o al traspasar trabajo a otro agente. |

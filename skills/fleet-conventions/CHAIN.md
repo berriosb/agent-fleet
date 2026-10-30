@@ -27,10 +27,11 @@ Una fase es un momento del trabajo. Cada skill pertenece a al menos una.
 | 2 | Implementación | `systematic-debugging` | Apareció un bug, un test falla, algo se comporta raro. |
 | 2 | Implementación | `cognitive-doc-design` | Escribís un doc, un README, una nota de arquitectura. |
 | 3 | Verificación | `verification-before-completion` | Antes de afirmar que algo está terminado, y antes de commitear. |
-| 3 | Verificación | `pre-push-qa` | Los chequeos de lint, tipos y tests. |
+| 3 | Verificación | `pre-push-qa` | Los chequeos de lint, tipos y tests. Por commit, con `--scope static`; completo, antes del push. |
 | 3 | Verificación | `hermes-profile-audit` | Se audita el estado de un perfil del fleet: antes o después de un `hermes update`, cuando un perfil se comporta mal, o en un barrido periodico. |
 | 3 | Verificación | `hermes-fleet-audit` | Se audita el fleet completo: inventario de skills por perfil, drift, uso real, memoria y plugins. |
-| 4 | Commit | `work-unit-commits` | Antes de cada `git commit`: qué va en este commit. |
+| 4 | Commit | `fleet-pair` | Cierra cada unidad de trabajo: el gate de la fase 3 primero, el commit después. Explícita. |
+| 4 | Commit | `work-unit-commits` | Antes de cada `git commit`: qué va en este commit y con qué mensaje. |
 | 5 | Push | `pre-push-qa` | El marcador de verificación, que se genera **después** del commit. |
 | 5 | Push | `cognitive-doc-design` | Escribís el cuerpo del PR. |
 | 6 | Cierre | `session-handoff` | Cerrás sesión, compactás contexto o traspasás la tarea. |
@@ -48,6 +49,7 @@ no una regla: lo que no se negocia es la razón de cada fila.
 
 | Fase | Modelo | Por qué |
 |---|---|---|
+| 0 · Base | El que sea | Leer reglas transversales no cuesta tokens de razonamiento. |
 | 1 · Diseño | El más capaz que tengas disponible | Razonar sobre alcance, requisitos y criterios de aceptación no tolera un modelo flojo. Acá el costo se paga una vez. |
 | 2 · Implementación | El más rápido que siga siendo bueno | El loop es test → código mínimo → verde. La latencia se paga en cada iteración, y son muchas. |
 | 3 · Verificación | El que sea: son comandos, no razonamiento | Correr lint, tipos y tests no necesita un modelo. |
@@ -55,7 +57,7 @@ no una regla: lo que no se negocia es la razón de cada fila.
 | 5 · Push | El más capaz, una sola vez | El cuerpo del PR y el review es donde el modelo caro rinde. |
 | 6 · Cierre | El que sea | Volcar el estado a disco no requiere criterio. |
 
-## Cuatro reglas que el orden no puede capturar
+## Cinco reglas que el orden no puede capturar
 
 **1. `verification-before-completion` es una puerta, no un paso.** Se dispara en cada
 afirmación de éxito, no una vez al final: antes de commitear, antes de pasar a la tarea
@@ -77,6 +79,16 @@ nunca llega ahí. Si el bug aparece antes del commit, se depura antes del commit
 ellas. Cuando la tarea es una historia sola, `fleet-story` alcanza y `fleet-interview`
 sobra. Cuando la tarea es un sistema entero, `fleet-backlog` va primero y `fleet-interview`
 decide lo que las historias no alcanzan a decidir.
+
+**5. El loop 2 → 3 → 4 se repite por unidad de trabajo.** `fleet-pair` escribe el código
+(fase 2), el gate corre **antes de cada commit** (fase 3, con `--scope static`: lint,
+tipos y build) y recién después se commitea (fase 4). **Ningún commit entra al historial
+sin haber pasado el gate.** El gate completo —con la suite entera— corre una sola vez,
+antes del push, y es el que escribe el marcador de la fase 5.
+
+Esto es lo que hace que la fase 3 preceda a la fase 4 sin contradecirse: no es "el gate
+una vez y después todos los commits", es "el gate en cada commit". El orden de las fases
+es el de una repetición, no el de una lista lineal.
 
 ## Qué NO define este orden
 
