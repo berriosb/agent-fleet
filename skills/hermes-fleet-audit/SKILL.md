@@ -1,6 +1,6 @@
 ---
 name: hermes-fleet-audit
-description: "Audit the Hermes fleet: profiles, skills, memory, plugins."
+description: "Audit the whole Hermes fleet: skill inventory per profile, drift, real usage, memory and plugins. Trigger: the object is the fleet, or a periodic sweep. NOT a single profile (hermes-profile-audit) and NOT how to use Hermes (hermes-agent)."
 version: 1.0.0
 author: Bastian Berrios, Hermes Agent
 license: MIT

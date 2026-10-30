@@ -1,6 +1,6 @@
 ---
 name: work-unit-commits
-description: "Plan commits as reviewable work units. Trigger: implementation, commit splitting, chained PRs, or keeping tests and docs with code."
+description: "Decides what goes in each commit, how to split a change into reviewable work units, and with what message. Trigger: planning commits, splitting a large PR into chained ones, or defining the rollback boundary. NOT writing the code (fleet-pair) and NOT running the checks (pre-push-qa)."
 license: Apache-2.0
 version: 1.0.0
 metadata:

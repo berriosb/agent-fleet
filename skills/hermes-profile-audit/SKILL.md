@@ -1,6 +1,6 @@
 ---
 name: hermes-profile-audit
-description: "Audit a Hermes profile's config, plugins, and memory."
+description: "Audit ONE Hermes profile: declared config against reality, plugins, memory and logs. Trigger: the object is a single profile. NOT the whole fleet (hermes-fleet-audit) and NOT how to use Hermes (hermes-agent)."
 version: 2.0.0
 author: Bastian Berrios, Hermes Agent
 license: MIT

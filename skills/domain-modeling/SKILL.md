@@ -1,6 +1,6 @@
 ---
 name: domain-modeling
-description: Build and sharpen a project's domain model. Use when discussing codebase terminology, writing or editing a GLOSSARY.md, or recording or editing an ADR.
+description: "Builds and sharpens a project's domain model: challenges terms, invents edge-case scenarios, writes the GLOSSARY.md and the ADR the moment they crystallise. Trigger: the vocabulary of the domain changed, or an ADR is due. NOT any other doc (cognitive-doc-design)."
 version: 1.0.0
 license: MIT
 ---

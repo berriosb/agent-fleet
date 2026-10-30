@@ -1,6 +1,6 @@
 ---
 name: cognitive-doc-design
-description: "Design docs that reduce cognitive load. Trigger: writing guides, READMEs, RFCs, onboarding, architecture, or review-facing docs."
+description: "Designs the content of a doc, README, ADR or PR body so a reviewer can verify it without reconstructing the story. Trigger: writing documentation. NOT the domain vocabulary (domain-modeling) and NOT running the checks (pre-push-qa)."
 license: Apache-2.0
 version: 1.0.0
 metadata:

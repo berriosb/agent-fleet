@@ -1,6 +1,6 @@
 ---
 name: fleet-story
-description: "Takes ONE user story from the backlog, adds 2-3 acceptance criteria and proposes a mini implementation plan for approval. Writes no code; implementation is fleet-pair's job. Trigger: refining a story, defining acceptance criteria, or deciding what a story leaves out of scope."
+description: "Takes ONE user story from the backlog and adds 2-3 acceptance criteria, a mini plan and an explicit out of scope. Trigger: there IS a story and what it has to satisfy is still undefined. NOT creating the backlog (fleet-backlog), NOT deciding the design (fleet-interview), NOT implementing (fleet-pair)."
 version: 1.0.0
 license: MIT
 disable-model-invocation: true

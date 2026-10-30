@@ -1,6 +1,6 @@
 ---
 name: fleet-pair
-description: "Pair programming with the AI on an already refined story. The AI writes code in small test-driven steps (one test -> minimum code -> green) and stops to wait for my go-ahead. Trigger: implementing a refined story, writing the test first, or working in small verified steps."
+description: "Pair programming with the AI on an already refined story: one test, the minimum code that makes it pass, green, the gate, the commit. Trigger: the story is ready and the code has to be written. NOT deciding what to build (fleet-backlog, fleet-story), NOT debugging something already broken (systematic-debugging), NOT deciding what goes in each commit (work-unit-commits)."
 version: 1.0.0
 license: MIT
 disable-model-invocation: true

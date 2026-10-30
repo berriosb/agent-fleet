@@ -36,6 +36,9 @@ Chequeos
 12. AGENTS.md declara las mismas fases que CHAIN.md, y el README lista todas las
     skills. AGENTS.md es lo que un agente lee de verdad: su tabla no puede
     quedar vieja en silencio.
+13. ruteo: cada description nombra al menos otra skill del repo, para que el
+    agente sepa a que skill cederle el caso que no es suyo. CHAIN.md no se carga
+    por description, asi que la description es el unico mecanismo de ruteo.
 
 Uso
 ───
@@ -438,6 +441,38 @@ def check_env_pattern(errors: list[str]) -> None:
             )
 
 
+def check_descriptions_route(errors: list[str]) -> None:
+    """Cada description tiene que decir a que skill cede el caso que no es suyo.
+
+    La unica fuente de verdad del orden es CHAIN.md, y CHAIN.md **no se carga
+    por description**: en runtime, lo que decide que skill entra es el texto de
+    la description. Si dos descriptions matchean el mismo input, el agente
+    carga las dos y no sabe cual seguir.
+
+    La regla minima: cada description nombra al menos otra skill del repo, para
+    que el agente sepa a donde pedirle. Es el desambiguador mas barato que
+    existe, y es verificable.
+    """
+    skill_names = sorted(p.parent.name for p in SKILLS_DIR.glob("*/SKILL.md"))
+    if len(skill_names) < 2:
+        return
+
+    for path in sorted(SKILLS_DIR.glob("*/SKILL.md")):
+        name = path.parent.name
+        fields, _ = parse_frontmatter(path)
+        if not fields:
+            continue
+        description = fields.get("description", "")
+        others = [other for other in skill_names if other != name]
+        if not any(other in description for other in others):
+            fail(
+                errors,
+                f"{name}: la description no nombra ninguna otra skill del repo. "
+                "Sin eso el agente no sabe a que skill cederle el caso que no "
+                "es suyo, y dos skills matchean el mismo input.",
+            )
+
+
 def check_replicated_commands(errors: list[str]) -> None:
     """Un comando replicado tiene que estar en su forma canonica en todos los sitios."""
     for spec in REPLICATED_COMMANDS:
@@ -672,6 +707,7 @@ def main() -> int:
     check_cjk(errors)
     check_fences(errors)
     check_env_pattern(errors)
+    check_descriptions_route(errors)
     check_replicated_commands(errors)
     check_shared_rules(errors)
     check_forbidden_cli(errors)

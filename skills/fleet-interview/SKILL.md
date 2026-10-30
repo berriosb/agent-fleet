@@ -1,6 +1,6 @@
 ---
 name: fleet-interview
-description: "Interview the user relentlessly about a plan, decision, or idea before implementing it. Use when a task is non-trivial or has open decisions: the user wants to stress-test their thinking, or asks to grill or interview the plan. Facts are the agent's job; decisions are the user's."
+description: "Interview the user about the open decisions of a task until there is a shared understanding. Trigger: the decisions are open and there is NO user story yet. NOT refining a story that already exists (fleet-story), NOT splitting an idea into slices (fleet-backlog), NOT writing code (fleet-pair)."
 license: MIT
 version: 1.1.0
 ---

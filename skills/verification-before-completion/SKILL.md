@@ -1,6 +1,6 @@
 ---
 name: verification-before-completion
-description: Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires running verification commands and confirming output before making any success claims; evidence before assertions always
+description: "Use the moment you are about to CLAIM that something is done, fixed or passing: run the verification command and read the full output before the claim. Trigger: before saying it works, before committing, before delegating. NOT the project gate that runs lint and tests (pre-push-qa) and NOT the investigation of a failure (systematic-debugging). No skip."
 version: 1.0.0
 license: MIT
 ---

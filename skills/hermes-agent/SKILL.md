@@ -1,6 +1,6 @@
 ---
 name: hermes-agent
-description: "Use, configure, theme, extend, and orchestrate Hermes Agent."
+description: "Use, configure, theme, extend, and orchestrate Hermes Agent. Trigger: the work is about Hermes itself. NOT auditing the whole fleet (hermes-fleet-audit) and NOT auditing one profile (hermes-profile-audit)."
 version: 3.2.0
 author: Hermes Agent + Teknium
 license: MIT

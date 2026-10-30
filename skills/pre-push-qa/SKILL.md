@@ -1,6 +1,6 @@
 ---
 name: pre-push-qa
-description: "Use when ANY agent (Codex, OpenCode, Claude Code, Gemini, Antigravity agy, Hermes Agent, terminal) is about to commit or push to GitHub and you want to reduce CI failures before they happen. Pre-push quality gate for non-pi agents. Runs static + tests locally with model-agnostic output. NOT a fit for Pi (gentle-ai) which has its own superior 4R/JD/lens review path. Triggers on: 'commit', 'push', 'fix this before I push', 'make sure CI passes', 'pre-push check', or before opening any PR."
+description: "Runs the project's own lint, types and tests locally before a commit or a push, and writes the verification marker. Trigger: ANY agent (Codex, OpenCode, Claude Code, Gemini, agy, Hermes, terminal) is about to commit or push. NOT a code review (that is the optional step of this same skill) and NOT the evidence behind your own claims (verification-before-completion). NOT a fit for Pi (gentle-ai): use its 4R/JD/lens review instead."
 version: 0.1.0
 author: codehak
 license: MIT

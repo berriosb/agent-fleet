@@ -325,6 +325,29 @@ class TestReadmeListsSkills(ScriptTestCase):
         self.assertEqual(errors, [])
 
 
+class TestDescriptionsRoute(ScriptTestCase):
+    script = "check-skills.py"
+
+    def test_description_sin_ninguna_otra_skill_se_reporta(self):
+        self.use_root()
+        # Sin ruteo, dos descriptions matchean el mismo input y el agente no
+        # sabe a cual seguir.
+        write_skill(self.root, "alpha", description="Hace una cosa. Trigger: cuando A.")
+        write_skill(self.root, "beta", description="Hace otra. Trigger: cuando B.")
+        errors: list[str] = []
+        self.module.check_descriptions_route(errors)
+        self.assertEqual(len(errors), 2)
+        self.assertTrue(all("no nombra ninguna otra skill" in e for e in errors))
+
+    def test_description_que_nombra_otra_skill_pasa(self):
+        self.use_root()
+        write_skill(self.root, "alpha", description="Hace una cosa. Trigger: cuando A. NO es B (beta).")
+        write_skill(self.root, "beta", description="Hace otra. Trigger: cuando B. NO es A (alpha).")
+        errors: list[str] = []
+        self.module.check_descriptions_route(errors)
+        self.assertEqual(errors, [])
+
+
 class TestSharedRules(ScriptTestCase):
     script = "check-skills.py"
 

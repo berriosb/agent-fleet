@@ -1,6 +1,6 @@
 ---
 name: session-handoff
-description: "Cierre de sesión y traspaso estructurado entre agentes. Vuelca el estado a working-context.md y notas diarias antes de compactación de contexto, cambio de agente o fin de sesión."
+description: "Cierre de sesión y traspaso estructurado entre agentes: vuelca el estado a working-context.md y a las notas diarias antes de compactar contexto, cambiar de agente o fin de sesión. Trigger: se cierra o se pausa. Lo que vuelca es lo que fleet-conventions pide en su §6: si no quedó escrito, no pasó."
 version: 1.0.0
 author: Bastián Berrios
 license: MIT

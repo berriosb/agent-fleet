@@ -1,6 +1,6 @@
 ---
 name: fleet-backlog
-description: "Turns an idea or a discussed feature into a backlog of short, vertical user stories that cut through every layer. No acceptance criteria and no implementation: that is fleet-story's job. Trigger: starting a feature, deciding what to build first, or turning a vague request into slices."
+description: "Splits a feature idea into a backlog of short, vertical user stories, one line each. Trigger: there is NO story yet and the question is what to build first. NOT deciding open decisions (fleet-interview), NOT refining a story that already exists (fleet-story), NOT writing code (fleet-pair)."
 version: 1.0.0
 license: MIT
 disable-model-invocation: true
