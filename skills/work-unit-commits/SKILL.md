@@ -32,7 +32,7 @@ Use it for:
 | Commit by work unit | A commit represents a deliverable behavior, fix, migration, or docs unit. |
 | Do not commit by file type | Avoid `models`, then `services`, then `tests` if none works alone. |
 | Keep tests with code | Tests belong in the same commit as the behavior they verify. |
-| Test before code in the diff | **The test goes first in the diff.** A test that changed after the code was already green is tampering, not refactoring. |
+| Test with the code | **The test changes in the same commit as the implementation.** Read the test's diff first: a test that changed after the code was green is tampering, not refactoring. |
 | Keep docs with the user-visible change | Docs belong with the feature or workflow they explain. |
 | Tell a story | A reviewer should understand why each commit exists from its diff and message. |
 | Future PR-ready | Each commit should be a candidate chained PR when the change grows. |
@@ -52,19 +52,23 @@ Before committing, confirm:
 - [ ] Rollback boundary names the exact files/behavior removable without unrelated work.
 - [ ] The commit message explains the outcome, not the file list.
 
-## The test goes first in the diff
+## The test's diff comes first
 
-The test belongs in the same commit as the behavior it verifies, but **the test goes
-first in the diff**. Order inside the commit:
+The test belongs in the same commit as the behavior it verifies, and
+**the test changes in the same commit as the implementation**. Git orders a diff
+by path, not by intent: in a `src/` + `tests/` layout the source file is listed
+first, and in a colocated layout it depends on the file names. So the order in
+the diff is not a property you can rely on — the *review* is.
 
-1. The test file, showing red.
-2. The implementation, turning it green.
+What makes the commit auditable is the reading order:
 
-That order is what makes the diff auditable. `git show <sha> -- <test file>` shows
-exactly what was written for the test, and nothing else hides there. If a test changed
-after the implementation was already green, that is tampering, not refactoring — and
-the red-green check in `verification-before-completion` is what proves it: revert the
-fix, the test must fail.
+1. `git show <sha> -- <test file>` — what was written for the test.
+2. `git show <sha> -- <implementation file>` — what was written for the code.
+
+If the test changed after the implementation was already green, that is
+tampering, not refactoring — and the red-green check in
+`verification-before-completion` is what proves it: revert the fix, the test
+must fail.
 
 ## Split Examples
 

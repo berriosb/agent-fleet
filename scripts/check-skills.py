@@ -86,14 +86,14 @@ class SharedRule(TypedDict):
 # en todos los sitios: una regla replicada se vence en uno de ellos sin que
 # nada lo note, y el resultado es que un agente ve dos versiones de lo mismo.
 #
-# El que motivo esto: la regla del "test antes que la implementacion" para
-# detectar al agente que toca los tests para que pasen. Vive en la skill que
-# decide los commits y en la skill que escribe el codigo; si una de las dos
-# la pierde, la trampa queda sin detectar.
+# El que motivo esto: la regla del "el test cambia en el mismo commit que la
+# implementacion" para detectar al agente que toca los tests para que pasen.
+# Vive en la skill que decide los commits y en la skill que escribe el codigo;
+# si una de las dos la pierde, la trampa queda sin detectar.
 SHARED_RULES: list[SharedRule] = [
     {
-        "name": "el test va antes que la implementacion en el diff",
-        "canonical": "test goes first in the diff",
+        "name": "el test cambia en el mismo commit que la implementacion",
+        "canonical": "changes in the same commit as the implementation",
         "sites": [
             SKILLS_DIR / "work-unit-commits" / "SKILL.md",
             SKILLS_DIR / "fleet-pair" / "SKILL.md",

@@ -100,9 +100,9 @@ The commit is a checkpoint, not a formality: the human reviews the diff before t
 next step starts. If they want to stop there, everything so far is already committed
 and green.
 
-**The test goes first in the diff.** Not as a separate commit: with the
-implementation in the same commit, `git show <sha> -- <test file>` shows exactly
-what was written for the test, and nothing else hides there. If the test changed
-after the implementation was already green, that is tampering, not refactoring:
-verify it with the red-green check in
+**The test changes in the same commit as the implementation.** Read the test's
+diff before the implementation's diff: `git show <sha> -- <test file>` shows
+exactly what was written for the test. If the test changed after the
+implementation was already green, that is tampering, not refactoring: verify it
+with the red-green check in
 [`verification-before-completion`](../verification-before-completion/SKILL.md).

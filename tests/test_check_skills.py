@@ -12,6 +12,14 @@ import unittest
 
 from tests.helpers import DEFAULT_DESCRIPTION, ScriptTestCase, write_chain, write_skill
 
+# La forma canonica de la regla replicada. Vive aca y en
+# scripts/check-skills.py (SHARED_RULES): si cambia en uno y no en el otro, el
+# test falla en vez de dejar que el repo se quede mudo.
+#
+# Sin mayuscula al inicio a proposito: la frase tiene que aparecer en medio de
+# una oracion en los dos sitios, y no al principio de otra.
+CANONICAL_RULE = "changes in the same commit as the implementation"
+
 
 class TestFrontmatter(ScriptTestCase):
     script = "check-skills.py"
@@ -324,12 +332,12 @@ class TestSharedRules(ScriptTestCase):
         self.use_root()
         # La regla vive en dos skills. Si una la pierde, el agente recibe dos
         # versiones distintas de lo mismo y nadie lo nota.
-        write_skill(self.root, "alpha", body="the test goes first in the diff")
+        write_skill(self.root, "alpha", body=CANONICAL_RULE)
         write_skill(self.root, "beta", body="nada que ver aca")
         self.module.SHARED_RULES = [
             {
-                "name": "el test va antes que la implementacion",
-                "canonical": "test goes first in the diff",
+                "name": "el test cambia en el mismo commit",
+                "canonical": CANONICAL_RULE,
                 "sites": [
                     self.root / "skills" / "alpha" / "SKILL.md",
                     self.root / "skills" / "beta" / "SKILL.md",
@@ -339,16 +347,16 @@ class TestSharedRules(ScriptTestCase):
         errors: list[str] = []
         self.module.check_shared_rules(errors)
         self.assertEqual(len(errors), 1)
-        self.assertIn("test goes first in the diff", errors[0])
+        self.assertIn(CANONICAL_RULE, errors[0])
 
     def test_regla_en_todos_los_sitios_pasa(self):
         self.use_root()
-        write_skill(self.root, "alpha", body="the test goes first in the diff")
-        write_skill(self.root, "beta", body="the test goes first in the diff")
+        write_skill(self.root, "alpha", body=CANONICAL_RULE)
+        write_skill(self.root, "beta", body=CANONICAL_RULE)
         self.module.SHARED_RULES = [
             {
-                "name": "el test va antes que la implementacion",
-                "canonical": "test goes first in the diff",
+                "name": "el test cambia en el mismo commit",
+                "canonical": CANONICAL_RULE,
                 "sites": [
                     self.root / "skills" / "alpha" / "SKILL.md",
                     self.root / "skills" / "beta" / "SKILL.md",
@@ -358,6 +366,33 @@ class TestSharedRules(ScriptTestCase):
         errors: list[str] = []
         self.module.check_shared_rules(errors)
         self.assertEqual(errors, [])
+
+    def test_la_regla_real_existe_en_los_sitios_declarados(self):
+        # Ver TestSharedRulesOnRealRepo: el chequeo del repo real vive en su
+        # propia clase porque `use_root()` muta el modulo y el estado persiste
+        # entre tests de la misma clase.
+        self.skipTest("cubierto por TestSharedRulesOnRealRepo")
+
+
+class TestSharedRulesOnRealRepo(ScriptTestCase):
+    """Los sitios declarados en SHARED_RULES tienen que existir de verdad."""
+
+    script = "check-skills.py"
+
+    def test_los_sitios_declarados_existen(self):
+        for spec in self.module.SHARED_RULES:
+            for site in spec["sites"]:
+                rel = site.relative_to(self.module.REPO)
+                self.assertTrue(
+                    site.is_file(),
+                    f"{rel} no existe: SHARED_RULES declara un sitio que no esta",
+                )
+                content = site.read_text(encoding="utf-8")
+                self.assertIn(
+                    spec["canonical"],
+                    content,
+                    f"{rel} no dice la forma canonica de '{spec['name']}'",
+                )
 
 
 class TestCoverageConsistency(ScriptTestCase):

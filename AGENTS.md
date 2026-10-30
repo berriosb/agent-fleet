@@ -44,8 +44,10 @@ Tres cosas que el orden no captura y conviene saber:
   bugs de lógica.
 
 `fleet-backlog`, `fleet-story` y `fleet-pair` se invocan **por nombre**: arrancan un
-flujo con checkpoints humanos y el agente no las dispara solo. El modelo que conviene
-usar en cada fase está en
+flujo con checkpoints humanos. En Claude Code el `disable-model-invocation` del
+frontmatter lo garantiza; en el resto de los agentes ese campo se ignora y lo que las
+apaga es el `Trigger: ...` de su `description`. El modelo que conviene usar en cada
+fase está en
 [`skills/fleet-conventions/CHAIN.md`](skills/fleet-conventions/CHAIN.md).
 
 Instalación global (todos los agentes de la máquina):

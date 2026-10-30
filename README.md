@@ -221,8 +221,14 @@ Orden completo en `skills/fleet-conventions/CHAIN.md`.
 
 `fleet-backlog`, `fleet-story` y `fleet-pair` **no van en la lista**: se invocan por
 nombre (`/fleet-backlog`, `/fleet-story`, `/fleet-pair`) porque arrancan un flujo con
-checkpoints humanos. Declararlas acá las volvería disparables por el agente, que es lo
-contrario de lo que quieren.
+checkpoints humanos.
+
+Una salvedad que importa: el `disable-model-invocation: true` del frontmatter es una
+extensión de **Claude Code**, no del
+[estándar Agent Skills](https://agentskills.io/specification). En OpenCode, Codex y
+Gemini el campo se ignora y la skill se carga cuando su `description` matchea, como
+las demás. Por eso el texto `Trigger: ...` de las tres descripciones no es decorativo:
+es lo que las mantiene apagadas fuera de Claude Code.
 
 ## Cómo funciona el gate de `pre-push-qa`
 

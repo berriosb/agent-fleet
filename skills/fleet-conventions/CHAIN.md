@@ -36,9 +36,10 @@ Una fase es un momento del trabajo. Cada skill pertenece a al menos una.
 | 6 | Cierre | `session-handoff` | Cerrás sesión, compactás contexto o traspasás la tarea. |
 
 Tres de las skills se invocan **explícitamente**: `fleet-backlog`, `fleet-story` y
-`fleet-pair`. Arrancan un flujo con checkpoints humanos, así que el agente no las
-dispara por su cuenta: se piden por nombre. Declararlas en el archivo de
-instrucciones del agente las deja disponibles sin que se carguen solas.
+`fleet-pair`. Arrancan un flujo con checkpoints humanos, así que lo natural es pedirlas
+por nombre. En Claude Code eso está garantizado por `disable-model-invocation: true`; en
+el resto de los agentes ese campo se ignora (no es parte del estándar Agent Skills) y
+lo que las apaga es el texto `Trigger: ...` de su `description`.
 
 ## El modelo por fase
 
