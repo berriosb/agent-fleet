@@ -1445,6 +1445,39 @@ def check_skill_paths(errors: list[str]) -> None:
                 )
 
 
+def check_description_contract(errors: list[str]) -> None:
+    """Cada description dice que hace, cuando aplica y a quien cede el caso que
+    no es suyo.
+
+    El formato esta documentado en `upstream/ATTRIBUTION.md`: que hace +
+    `Trigger:` + una serie de `NOT <caso> (<skill>)`.
+
+    No es estetica. `CHAIN.md` no se carga por description, asi que la
+    description es el unico mecanismo de ruteo que existe en runtime: si le
+    falta una de las tres partes, el agente carga la skill equivocada o la
+    carga siempre.
+    """
+    for path in sorted(SKILLS_DIR.glob("*/SKILL.md")):
+        rel = path.relative_to(REPO)
+        fields, _ = parse_frontmatter(path)
+        if not fields:
+            continue
+        description = fields.get("description", "")
+
+        if "Trigger:" not in description:
+            fail(
+                errors,
+                f"{rel}: la description no dice 'Trigger:'. Sin el, el agente no "
+                "sabe cuando aplicar la skill.",
+            )
+        if not re.search(r"\bNOT\b", description):
+            fail(
+                errors,
+                f"{rel}: la description no dice a que skill cede el caso que no "
+                "es suyo (falta un 'NOT <caso> (<skill>)').",
+            )
+
+
 def check_agent_links(errors: list[str]) -> None:
     """Cada skill del repo tiene que estar enlazada en `.agents/skills/`.
 
@@ -1667,6 +1700,7 @@ def main() -> int:
     check_no_voseo(errors)
     check_internal_skills(errors)
     check_descriptions_route(errors)
+    check_description_contract(errors)
     check_replicated_commands(errors)
     check_shared_rules(errors)
     check_forbidden_cli(errors)

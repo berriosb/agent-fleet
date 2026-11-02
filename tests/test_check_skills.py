@@ -999,6 +999,54 @@ class TestSkillPaths(ScriptTestCase):
         self.assertEqual(errors, [])
 
 
+class TestDescriptionContract(ScriptTestCase):
+    """Cada description dice que hace, cuando aplica y a quien cede el caso que
+    no es suyo.
+
+    El formato esta documentado en `upstream/ATTRIBUTION.md`. No es estetica:
+    `CHAIN.md` no se carga por description, asi que la description es el unico
+    mecanismo de ruteo que existe en runtime.
+    """
+
+    script = "check-skills.py"
+
+    def _skill(self, name: str, description: str) -> None:
+        skill_dir = self.root / "skills" / name
+        skill_dir.mkdir(parents=True, exist_ok=True)
+        (skill_dir / "SKILL.md").write_text(
+            "---\n"
+            f"name: {name}\n"
+            f'description: "{description}"\n'
+            "license: MIT\n"
+            "version: 1.0.0\n"
+            "---\n\n"
+            f"# {name}\n\n"
+            "## En la cadena\n\nFase 1 — Diseno. Cuando toque.\n",
+            encoding="utf-8",
+        )
+
+    def test_description_sin_trigger_se_reporta(self) -> None:
+        self.use_root()
+        self._skill("alpha", "Hace una cosa. NOT lo otro (beta).")
+        errors: list[str] = []
+        self.module.check_description_contract(errors)
+        self.assertTrue(any("Trigger:" in e for e in errors))
+
+    def test_description_sin_not_se_reporta(self) -> None:
+        self.use_root()
+        self._skill("alpha", "Hace una cosa. Trigger: siempre.")
+        errors: list[str] = []
+        self.module.check_description_contract(errors)
+        self.assertTrue(any("cede el caso" in e for e in errors))
+
+    def test_description_completa_pasa(self) -> None:
+        self.use_root()
+        self._skill("alpha", "Hace una cosa. Trigger: siempre. NOT lo otro (beta).")
+        errors: list[str] = []
+        self.module.check_description_contract(errors)
+        self.assertEqual(errors, [])
+
+
 class TestCoverageConsistency(ScriptTestCase):
     script = "check-skills.py"
 

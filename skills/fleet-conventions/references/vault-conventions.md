@@ -1,6 +1,6 @@
 ---
 name: fleet-conventions
-description: "Reglas universales de Bastián: línea roja, idioma, verificación, borrado y entregables. Curado a mano desde el vault; aplicala en TODO trabajo, sin importar el agente o el lenguaje. Es la capa de fondo: no reemplaza a verification-before-completion ni a ninguna otra skill."
+description: "Reglas universales de Bastián: línea roja, idioma, verificación, borrado y entregables. Curado a mano desde el vault; aplícala en TODO trabajo, sin importar el agente o el lenguaje. Trigger: siempre, antes de cualquier otra skill. NOT el paso a paso del trabajo (fleet-interview) y NOT la evidencia de una afirmación (verification-before-completion): es la capa de fondo, no el procedimiento."
 license: MIT
 metadata:
   generated: true
