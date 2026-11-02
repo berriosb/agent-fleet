@@ -48,7 +48,7 @@ entre el paquete público y la instalación local.
 | `skills/domain-modeling/` | Glosario y ADRs: el vocabulario compartido del proyecto. |
 | `skills/cognitive-doc-design/` | Docs que un revisor puede verificar sin reconstruir la historia. |
 | `scripts/sync-conventions.py` | Proyecta `conventions.md` del vault a `references/`. Render determinista: sin fecha ni rutas locales. |
-| `scripts/check-skills.py` | 20 checks: frontmatter, glifos CJK, fences de código, flags replicados, consistencia de la cadena, ruteo por `description`, skills internas, voseo, licencias y referencias a skills que no existen. Solo stdlib. |
+| `scripts/check-skills.py` | 21 checks: frontmatter, glifos CJK, fences de código, flags replicados, consistencia de la cadena, ruteo por `description`, skills internas, voseo, licencias, referencias a skills que no existen y paths que no resuelven. Solo stdlib. |
 | `scripts/check-install.py` | Estado de **tu máquina**: skills sin enlazar y copias divergentes en los perfiles de Hermes. |
 | `scripts/verify-hook.sh` | Round-trip del gate: el hook acepta, consume y bloquea como debe. |
 | `scripts/verify-runner.sh` | Round-trip del runner: omite lo que no tiene, bloquea lo que falla, reparte por scope. |

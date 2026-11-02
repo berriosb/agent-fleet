@@ -44,7 +44,7 @@ Orden completo: [`CHAIN.md`](CHAIN.md).
 
 - Español por defecto. Respuestas cortas.
 - **Voseo argentino prohibido**: `probá`, `vení`, `podés`, `tenés`, `querés`, `revisá`,
-  `decime`, y las demás formas de `BANNED_VOSEO` en `scripts/check-skills.py`. Son
+  `decime`, y las demás formas de `BANNED_VOSEO` en `repo/scripts/check-skills.py`. Son
   voseo rioplatense: acá se usa `tú` / `usted` natural chileno. La lista completa la
   verifica el checker, así que no hace falta memorizarla.
 - Sin filler: nada de "Gran pregunta", "con gusto", "procedo", "perfecto".

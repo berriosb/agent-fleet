@@ -1151,6 +1151,19 @@ def _paragraph_containing(text: str, index: int) -> str:
     return text[start:end]
 
 
+# Paths que una skill nombra con prefijo de directorio. Son relativos a la
+# skill: el agente los resuelve desde ahi.
+#
+# `repo/` es el prefijo explicito para lo que vive en el repo y no en la skill.
+# Sin el, un path del repo escrito como `scripts/verify.sh` parece relativo a
+# la skill, y no esta.
+REPO_PREFIX = "repo/"
+SKILL_RELATIVE_PATH_RE = re.compile(
+    r"`((?:repo/)?(?:scripts|prompts|examples|templates|references)/[A-Za-z0-9._/-]+)`"
+)
+MARKDOWN_LINK_RE = re.compile(r"\]\(([^)\s]+)\)")
+
+
 def parse_attribution_licenses() -> dict[str, dict[str, str]]:
     """Las dos tablas de `upstream/ATTRIBUTION.md`: skill -> licencia.
 
@@ -1387,6 +1400,51 @@ def check_readme_check_count(errors: list[str]) -> None:
         )
 
 
+def check_skill_paths(errors: list[str]) -> None:
+    """Todo path que un SKILL.md nombra tiene que existir.
+
+    `scripts/run.sh` dentro de un SKILL.md es relativo a la skill: el agente lo
+    resuelve desde ahi, y si no existe lo busca y no lo encuentra. Un path del
+    repo se nombra con el prefijo `repo/`, para que la ambiguedad no dependa de
+    donde se mire.
+
+    Los links markdown tambien cuentan: un link roto es un link roto.
+    """
+    for path in sorted(SKILLS_DIR.glob("*/SKILL.md")):
+        rel = path.relative_to(REPO)
+        skill_dir = path.parent
+        content = path.read_text(encoding="utf-8")
+
+        for match in SKILL_RELATIVE_PATH_RE.finditer(content):
+            target = match.group(1)
+            lineno = content[: match.start()].count("\n") + 1
+            if target.startswith(REPO_PREFIX):
+                candidate = REPO / target[len(REPO_PREFIX) :]
+                if not candidate.exists():
+                    fail(
+                        errors,
+                        f"{rel}:{lineno}: nombra '{target}', que no existe en el repo",
+                    )
+                continue
+            if not (skill_dir / target).exists():
+                fail(
+                    errors,
+                    f"{rel}:{lineno}: nombra '{target}', que no existe en la skill. "
+                    "Un path relativo a la skill se resuelve desde la skill.",
+                )
+
+        for match in MARKDOWN_LINK_RE.finditer(content):
+            target = match.group(1)
+            if target.startswith(("http://", "https://", "#", "mailto:")):
+                continue
+            lineno = content[: match.start()].count("\n") + 1
+            if not (skill_dir / target).exists():
+                fail(
+                    errors,
+                    f"{rel}:{lineno}: el link a '{target}' no resuelve desde la skill",
+                )
+
+
 def check_agent_links(errors: list[str]) -> None:
     """Cada skill del repo tiene que estar enlazada en `.agents/skills/`.
 
@@ -1620,6 +1678,7 @@ def main() -> int:
     check_readme_licenses(errors)
     check_readme_check_count(errors)
     check_skill_references(errors)
+    check_skill_paths(errors)
     check_readme_diagram_matches_chain(errors)
 
     if errors:

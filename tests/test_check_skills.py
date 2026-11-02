@@ -911,6 +911,94 @@ class TestReadmeCheckCount(ScriptTestCase):
         self.assertEqual(self.module.count_checks(source), 2)
 
 
+class TestSkillPaths(ScriptTestCase):
+    """Un path que una skill nombra tiene que existir.
+
+    `scripts/run.sh` dentro de un SKILL.md es relativo a la skill: el agente lo
+    resuelve desde ahi. Un path del repo se nombra con el prefijo `repo/`, para
+    que la ambiguedad no dependa de donde se mire.
+    """
+
+    script = "check-skills.py"
+
+    def _skill(self, name: str, body: str = "", files: tuple[str, ...] = ()) -> None:
+        skill_dir = self.root / "skills" / name
+        skill_dir.mkdir(parents=True, exist_ok=True)
+        (skill_dir / "SKILL.md").write_text(
+            "---\n"
+            f"name: {name}\n"
+            f'description: "{DEFAULT_DESCRIPTION}"\n'
+            "license: MIT\n"
+            "version: 1.0.0\n"
+            "---\n\n"
+            f"# {name}\n\n"
+            "## En la cadena\n\nFase 1 — Diseno. Cuando toque.\n\n"
+            f"{body}\n",
+            encoding="utf-8",
+        )
+        for rel in files:
+            target = skill_dir / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("contenido\n", encoding="utf-8")
+
+    def test_path_de_skill_inexistente_se_reporta(self) -> None:
+        self.use_root()
+        self._skill("alpha", "El runner es `scripts/run.sh`.")
+        errors: list[str] = []
+        self.module.check_skill_paths(errors)
+        self.assertTrue(any("scripts/run.sh" in e for e in errors))
+
+    def test_path_de_skill_existente_pasa(self) -> None:
+        self.use_root()
+        self._skill("alpha", "El runner es `scripts/run.sh`.", ("scripts/run.sh",))
+        errors: list[str] = []
+        self.module.check_skill_paths(errors)
+        self.assertEqual(errors, [])
+
+    def test_path_con_prefijo_de_repo_se_verifica_en_el_repo(self) -> None:
+        self.use_root()
+        self._skill("alpha", "El checker es `repo/scripts/check-skills.py`.")
+        errors: list[str] = []
+        self.module.check_skill_paths(errors)
+        self.assertTrue(any("repo/scripts/check-skills.py" in e for e in errors))
+
+    def test_path_de_repo_existente_pasa(self) -> None:
+        self.use_root()
+        self._skill("alpha", "El checker es `repo/scripts/check-skills.py`.")
+        (self.root / "scripts").mkdir(parents=True)
+        (self.root / "scripts" / "check-skills.py").write_text("x\n", encoding="utf-8")
+        errors: list[str] = []
+        self.module.check_skill_paths(errors)
+        self.assertEqual(errors, [])
+
+    def test_link_markdown_roto_se_reporta(self) -> None:
+        self.use_root()
+        self._skill("alpha", "Mira [`fantasma.md`](fantasma.md).")
+        errors: list[str] = []
+        self.module.check_skill_paths(errors)
+        self.assertTrue(any("fantasma.md" in e for e in errors))
+
+    def test_link_markdown_a_skill_hermana_pasa(self) -> None:
+        self.use_root()
+        self._skill("alpha")
+        self._skill("beta")
+        (self.root / "skills" / "alpha" / "SKILL.md").write_text(
+            "---\n"
+            "name: alpha\n"
+            f'description: "{DEFAULT_DESCRIPTION}"\n'
+            "license: MIT\n"
+            "version: 1.0.0\n"
+            "---\n\n"
+            "# alpha\n\n"
+            "## En la cadena\n\nFase 1 — Diseno. Cuando toque.\n\n"
+            "Mira [`beta`](../beta/SKILL.md).\n",
+            encoding="utf-8",
+        )
+        errors: list[str] = []
+        self.module.check_skill_paths(errors)
+        self.assertEqual(errors, [])
+
+
 class TestCoverageConsistency(ScriptTestCase):
     script = "check-skills.py"
 

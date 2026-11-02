@@ -51,8 +51,8 @@ Load `pre-push-qa` whenever any of your agents says one of:
 - "open a PR"
 - "ship this fix"
 - "before I push — make sure CI passes"
-- also load proactively before `delegate_task` work that will commit, or before running
-  `hermes-agent code` with autoCommit=true
+- also load proactively before `delegate_task` work that will commit, or before any Hermes
+  run that is set up to commit on its own.
 
 **Skip parts of this skill — never the whole thing by accident:**
 
@@ -276,7 +276,7 @@ The PR body has one canonical shape, defined by
 - [ ] [criterion the reviewer can confirm]
 ```
 
-Do not invent a second format. `scripts/check-skills.py` verifies that this section
+Do not invent a second format. `repo/scripts/check-skills.py` verifies that this section
 and the canonical one in `cognitive-doc-design` do not drift apart.
 
 ## Outputs the agent should give back
@@ -461,12 +461,15 @@ which is exactly why it must be installed and verified.
 bash ~/.githooks/pre-push origin HEAD:refs/heads/selftest < /dev/null; echo "hook=$?"  # 0
 ```
 
-El round-trip completo (marcador valido, marcador obsoleto, sin marcador) vive en
-`scripts/verify-hook.sh`, que forma parte de `scripts/verify.sh`.
+El round-trip completo (marcador valido, marcador obsoleto, sin marcador) vive en los
+scripts del repo (`repo/scripts/verify-hook.sh` y `repo/scripts/verify.sh`), no en esta
+skill: se prueban ahi, no se usan desde aca.
 
 ## Files in this skill
 
 - `SKILL.md` — this file (the self-contained agent-agnostic procedure with embedded review & auto-fix guidelines)
 - `scripts/run.sh` — standalone bash runner for local terminal checks and security scans
+- `scripts/review-call.js` — the CI entry point for the review prompt
+- `scripts/auto-fix-attempt.js` — the CI entry point for the auto-fix prompt
 - `examples/pre-push.sh` — optional git pre-push hook for hard enforcement
 - `prompts/` — fuente de verdad de los prompts de review y auto-fix. Los usan la CI (`scripts/review-call.js`, `scripts/auto-fix-attempt.js`) y el agente en local (Steps 3 y 4).

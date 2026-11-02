@@ -103,7 +103,7 @@ When documenting a PR, reduce reviewer burnout by making the review path explici
 - Use checklists for acceptance criteria and verification.
 
 This shape is the canonical one for the whole fleet. `pre-push-qa` uses it too, and
-`scripts/check-skills.py` verifies that the two do not drift apart.
+`repo/scripts/check-skills.py` verifies that the two do not drift apart.
 
 ## Commands
 
