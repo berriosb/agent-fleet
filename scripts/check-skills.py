@@ -1089,6 +1089,143 @@ def check_readme_lists_skills(errors: list[str]) -> None:
             fail(errors, f"README.md no lista la skill '{skill}' (falta skills/{skill}/)")
 
 
+# La licencia de una skill se declara en tres lugares: el frontmatter (la
+# fuente), `upstream/ATTRIBUTION.md` (de donde viene) y la seccion de licencia
+# del README (la primera copia que se lee). El README no se regenera, asi que
+# es la que deriva sola.
+#
+# Los grupos del README se detectan por la forma "MIT (`a`, `b`)": la licencia
+# y la lista de skills. "MIT para lo propio" no lleva lista y no es un grupo.
+README_LICENSE_GROUP_RE = re.compile(r"(MIT|Apache-2\.0)\s*\(([^)]*)\)", re.DOTALL)
+
+# Las dos tablas de ATTRIBUTION.md que declaran una licencia por skill. Las dos
+# tienen la skill en la primera columna y la licencia en la tercera.
+ATTRIBUTION_LICENSE_SECTIONS = ("## Skills propias", "## Skills adaptadas")
+
+LICENSE_VALUES = ("MIT", "Apache-2.0")
+
+
+def parse_attribution_licenses() -> dict[str, dict[str, str]]:
+    """Las dos tablas de `upstream/ATTRIBUTION.md`: skill -> licencia.
+
+    "Skills propias" y "Skills adaptadas" tienen la misma forma: la skill en la
+    primera columna y la licencia en la tercera. La diferencia es semantica
+    (propia = de este repo; adaptada = conserva la del upstream) y decide si el
+    README tiene que nombrarla.
+    """
+    path = REPO / "upstream" / "ATTRIBUTION.md"
+    out: dict[str, dict[str, str]] = {"propias": {}, "adaptadas": {}}
+    if not path.is_file():
+        return out
+
+    section = ""
+    for line in path.read_text(encoding="utf-8").split("\n"):
+        if line.startswith("## "):
+            section = line.strip()
+            continue
+        if section == "## Skills propias":
+            key = "propias"
+        elif section == "## Skills adaptadas":
+            key = "adaptadas"
+        else:
+            continue
+        cells = line.split("|")
+        if len(cells) < 4:
+            continue
+        skill = cells[1].strip().strip("`")
+        license_ = cells[3].strip()
+        if re.fullmatch(r"[a-z0-9-]+", skill) and license_ in LICENSE_VALUES:
+            out[key][skill] = license_
+    return out
+
+
+def check_readme_licenses(errors: list[str]) -> None:
+    """La licencia que declara el README tiene que ser la que declara la skill.
+
+    Tres copias: el frontmatter (la fuente), ATTRIBUTION.md (de donde viene) y
+    el README (la primera que se lee). El README no se regenera, asi que es la
+    que deriva sola: por eso se verifica contra las otras dos.
+    """
+    readme = REPO / "README.md"
+    if not readme.is_file():
+        fail(errors, "falta README.md")
+        return
+    content = readme.read_text(encoding="utf-8")
+
+    section = re.search(
+        r"^##\s+Licencia\s*$(.*?)(?=^## |\Z)", content, re.MULTILINE | re.DOTALL
+    )
+    if not section:
+        fail(errors, "README.md no tiene la seccion '## Licencia'")
+        return
+
+    declared: dict[str, str] = {}
+    for path in sorted(SKILLS_DIR.glob("*/SKILL.md")):
+        fields, _ = parse_frontmatter(path)
+        if fields:
+            declared[path.parent.name] = fields.get("license", "")
+
+    attribution = parse_attribution_licenses()
+
+    # La fuente de verdad contra la fuente: el frontmatter manda.
+    for skill, license_ in sorted(attribution["adaptadas"].items()):
+        real = declared.get(skill)
+        if real is None:
+            continue
+        if real != license_:
+            fail(
+                errors,
+                f"upstream/ATTRIBUTION.md dice {license_} para '{skill}' pero su "
+                f"frontmatter dice {real}",
+            )
+
+    # El README contra el frontmatter.
+    listed: dict[str, str] = {}
+    for match in README_LICENSE_GROUP_RE.finditer(section.group(1)):
+        license_ = match.group(1)
+        for name in re.findall(r"`([a-z0-9-]+)`", match.group(2)):
+            if name in listed:
+                fail(
+                    errors,
+                    f"README.md: la skill '{name}' aparece dos veces en la seccion "
+                    "de licencia",
+                )
+            listed[name] = license_
+
+    for name, license_ in sorted(listed.items()):
+        real = declared.get(name)
+        if real is None:
+            fail(
+                errors,
+                f"README.md: la seccion de licencia nombra '{name}', que no existe "
+                "en skills/",
+            )
+        elif real != license_:
+            fail(
+                errors,
+                f"README.md: '{name}' figura con licencia {license_} pero su "
+                f"frontmatter dice {real}",
+            )
+
+    # Toda skill adaptada tiene que estar: su licencia es la del upstream y hay
+    # que declararla. Las propias las cubre "MIT para lo propio".
+    for skill, license_ in sorted(attribution["adaptadas"].items()):
+        if skill not in declared:
+            continue
+        if skill not in listed:
+            fail(
+                errors,
+                f"README.md: la seccion de licencia no nombra la skill adaptada "
+                f"'{skill}'",
+            )
+        elif listed[skill] != license_:
+            fail(
+                errors,
+                f"README.md: '{skill}' figura con licencia {listed[skill]} pero "
+                f"ATTRIBUTION.md dice {license_}",
+            )
+
+
 def check_agent_links(errors: list[str]) -> None:
     """Cada skill del repo tiene que estar enlazada en `.agents/skills/`.
 
@@ -1319,6 +1456,7 @@ def main() -> int:
     check_chain(errors)
     check_agents_matches_chain(errors)
     check_readme_lists_skills(errors)
+    check_readme_licenses(errors)
     check_readme_diagram_matches_chain(errors)
 
     if errors:

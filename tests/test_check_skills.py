@@ -686,6 +686,91 @@ class TestSharedRulesOnRealRepo(ScriptTestCase):
                 )
 
 
+class TestReadmeLicenses(ScriptTestCase):
+    """La licencia de una skill se declara en tres lugares: frontmatter,
+    `upstream/ATTRIBUTION.md` y la seccion de licencia del README.
+
+    El README es la primera copia que se lee y la unica que no se regenera. Si
+    lista una skill con la licencia equivocada, el error llega al que instala
+    el paquete antes que a nadie.
+    """
+
+    script = "check-skills.py"
+
+    def _attribution(self, adapted_rows: str = "") -> None:
+        path = self.root / "upstream" / "ATTRIBUTION.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            "## Skills propias\n\n"
+            "| Skill | Autor | Licencia |\n|---|---|---|\n"
+            "| `propia` | Alguien | MIT |\n\n"
+            "## Skills adaptadas\n\n"
+            "| Skill | Origen | Licencia | Cambios |\n|---|---|---|---|\n"
+            + adapted_rows,
+            encoding="utf-8",
+        )
+
+    def _readme(self, body: str) -> None:
+        (self.root / "README.md").write_text(
+            f"# Repo\n\n## Licencia\n\n{body}\n", encoding="utf-8"
+        )
+
+    def test_licencia_incorrecta_en_el_readme_se_reporta(self) -> None:
+        self.use_root()
+        write_skill(self.root, "propia", license_="MIT")
+        write_skill(self.root, "adaptada", license_="MIT")
+        self._attribution("| `adaptada` | Upstream | MIT | algo |\n")
+        self._readme("MIT para lo propio. Las adaptadas: Apache-2.0 (`adaptada`).")
+        errors: list[str] = []
+        self.module.check_readme_licenses(errors)
+        self.assertTrue(any("figura con licencia" in e for e in errors))
+
+    def test_skill_adaptada_que_el_readme_omite_se_reporta(self) -> None:
+        self.use_root()
+        write_skill(self.root, "propia", license_="MIT")
+        write_skill(self.root, "adaptada", license_="MIT")
+        self._attribution("| `adaptada` | Upstream | MIT | algo |\n")
+        self._readme("MIT para lo propio. Las adaptadas: MIT (`otra`).")
+        errors: list[str] = []
+        self.module.check_readme_licenses(errors)
+        self.assertTrue(any("no nombra la skill adaptada 'adaptada'" in e for e in errors))
+
+    def test_skill_inexistente_en_el_readme_se_reporta(self) -> None:
+        self.use_root()
+        write_skill(self.root, "propia", license_="MIT")
+        self._attribution()
+        self._readme("MIT para lo propio. Las adaptadas: MIT (`fantasma`).")
+        errors: list[str] = []
+        self.module.check_readme_licenses(errors)
+        self.assertTrue(any("no existe en skills/" in e for e in errors))
+
+    def test_atribucion_contrdice_el_frontmatter_se_reporta(self) -> None:
+        self.use_root()
+        write_skill(self.root, "adaptada", license_="MIT")
+        self._attribution("| `adaptada` | Upstream | Apache-2.0 | algo |\n")
+        self._readme("Las adaptadas: MIT (`adaptada`).")
+        errors: list[str] = []
+        self.module.check_readme_licenses(errors)
+        self.assertTrue(any("ATTRIBUTION.md dice Apache-2.0" in e for e in errors))
+
+    def test_todo_alineado_pasa(self) -> None:
+        self.use_root()
+        write_skill(self.root, "propia", license_="MIT")
+        write_skill(self.root, "adaptada", license_="MIT")
+        write_skill(self.root, "apache", license_="Apache-2.0")
+        self._attribution(
+            "| `adaptada` | Upstream | MIT | algo |\n"
+            "| `apache` | Upstream | Apache-2.0 | algo |\n"
+        )
+        self._readme(
+            "MIT para lo propio. Las adaptadas: MIT (`adaptada`) y "
+            "Apache-2.0 (`apache`)."
+        )
+        errors: list[str] = []
+        self.module.check_readme_licenses(errors)
+        self.assertEqual(errors, [])
+
+
 class TestCoverageConsistency(ScriptTestCase):
     script = "check-skills.py"
 

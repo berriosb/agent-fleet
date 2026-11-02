@@ -427,7 +427,8 @@ paralelo: si el release falla, el tag no llega y el job falla al expirar la espe
 ## Licencia
 
 MIT para lo propio. Las skills adaptadas conservan su licencia original: MIT
-(`verification-before-completion`, `domain-modeling`, `fleet-interview`) y Apache-2.0
-(`work-unit-commits`, `cognitive-doc-design`, `pre-push-qa`). Ver
+(`verification-before-completion`, `systematic-debugging`, `domain-modeling`,
+`fleet-interview`, `fleet-backlog`, `fleet-story`, `fleet-pair`, `hermes-agent`,
+`pre-push-qa`) y Apache-2.0 (`work-unit-commits`, `cognitive-doc-design`). Ver
 [`upstream/ATTRIBUTION.md`](upstream/ATTRIBUTION.md) para el detalle y los avisos exigidos
 por Apache-2.0.
