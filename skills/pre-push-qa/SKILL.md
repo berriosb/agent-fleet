@@ -1,6 +1,6 @@
 ---
 name: pre-push-qa
-description: "Runs the project's own lint, types and tests locally before a commit or a push, and writes the verification marker. Trigger: ANY agent (Codex, OpenCode, Claude Code, Gemini, agy, Hermes, terminal) is about to commit or push. NOT a code review (that is the optional step of this same skill) and NOT the evidence behind your own claims (verification-before-completion). NOT a fit for Pi (gentle-ai): use its 4R/JD/lens review instead."
+description: "Runs the project's own lint, types and tests locally before a commit or a push, and writes the verification marker. Trigger: ANY agent (Codex, OpenCode, Claude Code, Gemini, agy, Hermes, terminal) is about to commit or push. NOT a code review (that is the optional step of this same skill) and NOT the evidence behind your own claims (verification-before-completion). NOT a fit for Pi: that agent has its own 4R / JD / lens review instead."
 version: 0.1.0
 author: codehak
 license: MIT

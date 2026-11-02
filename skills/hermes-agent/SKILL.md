@@ -13,7 +13,7 @@ metadata:
   hermes:
     tags: [hermes, setup, configuration, multi-agent, spawning, cli, gateway, bots, bot-mode, features, themes, skins, desktop-plugins, tui-widgets, petdex, development]
     homepage: https://github.com/NousResearch/hermes-agent
-    related_skills: [claude-code, codex, opencode]
+    related_skills: [hermes-fleet-audit, hermes-profile-audit]
 ---
 
 # Hermes Agent

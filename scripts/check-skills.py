@@ -1104,6 +1104,52 @@ ATTRIBUTION_LICENSE_SECTIONS = ("## Skills propias", "## Skills adaptadas")
 
 LICENSE_VALUES = ("MIT", "Apache-2.0")
 
+# Skills que este repo puede nombrar aunque no las contenga.
+#
+# Son externas: viven en los perfiles de Hermes del autor, no en el paquete
+# publico. Se pueden citar como ruteo, pero la mencion tiene que decir que son
+# externas: sin el descargo, el agente las busca adentro de este repo y no las
+# encuentra.
+#
+# La lista es canonica: una skill externa que se nombre sin estar aca es un
+# nombre colgante, y una que esta aca pero no existe en ningun lado es una
+# entrada que no sirve.
+EXTERNAL_SKILLS = [
+    "agent-stack-footprint-audit",
+    "ai-agent-cli-update-cycle",
+    "hermes-kanban-orchestration",
+]
+
+# Los tres contextos en los que un SKILL.md nombra otra skill de forma
+# explicita. Los tres son un ruteo: "este caso es de la skill X".
+RELATED_SKILLS_RE = re.compile(r"related_skills:\s*\[([^\]]*)\]")
+ROUTE_ARROW_RE = re.compile(r"→\s*`([a-z0-9-]+)`")
+DESCRIPTION_ROUTE_RE = re.compile(r"NOT\b[^.]*?\(\s*([a-z0-9-]+)\s*\)")
+
+# Una mencion de una skill externa tiene que decir que es externa. El descargo
+# pertenece al parrafo, que es donde el agente lee el ruteo.
+EXTERNAL_DISCLAIMER_RE = re.compile(
+    r"extern"
+    r"|opcional"
+    r"|optional"
+    r"|not part of this repo"
+    r"|no es de este repo"
+    r"|no viven en este repo"
+    r"|happen to be installed"
+    r"|est[aá] instalada",
+    re.IGNORECASE,
+)
+
+
+def _paragraph_containing(text: str, index: int) -> str:
+    """El parrafo (bloque separado por lineas en blanco) que contiene `index`."""
+    start = text.rfind("\n\n", 0, index)
+    start = 0 if start == -1 else start + 2
+    end = text.find("\n\n", index)
+    if end == -1:
+        end = len(text)
+    return text[start:end]
+
 
 def parse_attribution_licenses() -> dict[str, dict[str, str]]:
     """Las dos tablas de `upstream/ATTRIBUTION.md`: skill -> licencia.
@@ -1224,6 +1270,121 @@ def check_readme_licenses(errors: list[str]) -> None:
                 f"README.md: '{skill}' figura con licencia {listed[skill]} pero "
                 f"ATTRIBUTION.md dice {license_}",
             )
+
+
+def check_skill_references(errors: list[str]) -> None:
+    """Toda skill que un SKILL.md nombra como ruteo tiene que existir.
+
+    `CHAIN.md` no se carga por description: en runtime lo unico que decide que
+    skill entra es el texto de la description y los ruteos del cuerpo. Un
+    nombre que no existe es una promesa que el agente no puede cumplir, y la
+    busca adentro de este repo, donde no esta.
+
+    Hay tres contextos de ruteo, y los tres son explicitos:
+      - `related_skills: [...]` en el frontmatter,
+      - la flecha `(→ `skill`)` del cuerpo,
+      - el `NOT <caso> (`skill`)` de la description.
+
+    Las skills externas son una excepcion declarada: se pueden nombrar, pero hay
+    que decir que son externas, o el agente las busca adentro.
+    """
+    skill_names = {p.parent.name for p in SKILLS_DIR.glob("*/SKILL.md")}
+    if not skill_names:
+        return
+
+    for path in sorted(SKILLS_DIR.glob("*/SKILL.md")):
+        rel = path.relative_to(REPO)
+        content = path.read_text(encoding="utf-8")
+        fields, _ = parse_frontmatter(path)
+        description = fields.get("description", "") if fields else ""
+
+        # 1. `related_skills: [...]` en el frontmatter.
+        for match in RELATED_SKILLS_RE.finditer(content):
+            for other in re.findall(r"[a-z0-9-]+", match.group(1)):
+                if other not in skill_names and other not in EXTERNAL_SKILLS:
+                    fail(
+                        errors,
+                        f"{rel}: `related_skills` nombra '{other}', que no existe en "
+                        "skills/. Una entrada colgante es una referencia que la "
+                        "proxima sesion va a intentar resolver.",
+                    )
+
+        # 2. El ruteo por flecha en el cuerpo.
+        for match in ROUTE_ARROW_RE.finditer(content):
+            other = match.group(1)
+            if other in skill_names:
+                continue
+            lineno = content[: match.start()].count("\n") + 1
+            if other not in EXTERNAL_SKILLS:
+                fail(
+                    errors,
+                    f"{rel}:{lineno}: rutea a '{other}', que no existe en skills/. "
+                    "Si es externa, declárala en EXTERNAL_SKILLS.",
+                )
+                continue
+            paragraph = _paragraph_containing(content, match.start())
+            if not EXTERNAL_DISCLAIMER_RE.search(paragraph):
+                fail(
+                    errors,
+                    f"{rel}:{lineno}: '{other}' es externa a este repo y la mencion "
+                    "no lo dice. Sin el descargo, el agente la busca adentro.",
+                )
+
+        # 3. El ruteo en la description.
+        for match in DESCRIPTION_ROUTE_RE.finditer(description):
+            other = match.group(1)
+            if other not in skill_names and other not in EXTERNAL_SKILLS:
+                fail(
+                    errors,
+                    f"{rel}: la description rutea a '{other}', que no existe en "
+                    "skills/. El ruteo por description es el unico mecanismo que hay "
+                    "en runtime.",
+                )
+
+
+def count_checks(source: str | None = None) -> int:
+    """Cuantos checks corre `main()`.
+
+    Se cuenta el codigo y no una lista escrita a mano: la lista seria otra copia
+    que deriva sola, y es justamente lo que este check viene a evitar.
+    """
+    if source is None:
+        source = Path(__file__).resolve().read_text(encoding="utf-8")
+    main_match = re.search(
+        r"^def main\(\).*?(?=^if __name__|\Z)", source, re.MULTILINE | re.DOTALL
+    )
+    if not main_match:
+        return 0
+    return len(
+        set(re.findall(r"^\s+(check_\w+)\(errors\)", main_match.group(0), re.MULTILINE))
+    )
+
+
+def check_readme_check_count(errors: list[str]) -> None:
+    """El README dice cuantos checks tiene el checker: que diga la verdad."""
+    readme = REPO / "README.md"
+    if not readme.is_file():
+        fail(errors, "falta README.md")
+        return
+    content = readme.read_text(encoding="utf-8")
+
+    match = re.search(r"(\d+)\s+checks\b", content)
+    if not match:
+        fail(
+            errors,
+            "README.md no dice cuantos checks tiene check-skills.py. Sin el numero, "
+            "no hay forma de saber si la lista esta vieja.",
+        )
+        return
+
+    declared = int(match.group(1))
+    actual = count_checks()
+    if declared != actual:
+        fail(
+            errors,
+            f"README.md dice {declared} checks pero check-skills.py corre {actual}. "
+            "El numero sale del codigo: hay que actualizar el README.",
+        )
 
 
 def check_agent_links(errors: list[str]) -> None:
@@ -1457,6 +1618,8 @@ def main() -> int:
     check_agents_matches_chain(errors)
     check_readme_lists_skills(errors)
     check_readme_licenses(errors)
+    check_readme_check_count(errors)
+    check_skill_references(errors)
     check_readme_diagram_matches_chain(errors)
 
     if errors:

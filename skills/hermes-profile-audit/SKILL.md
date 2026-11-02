@@ -12,7 +12,7 @@ metadata:
   internal: true
   hermes:
     tags: [hermes, audit, config, memory, plugins, gateway, state-db, verification]
-    related_skills: [hermes-agent-skill-authoring]
+    related_skills: [hermes-agent, hermes-fleet-audit]
 ---
 
 # Hermes profile audit
@@ -56,7 +56,8 @@ path appears in the command's output.
 **Don't use for:** auditing which third-party agent CLIs are installed
 (→ `agent-stack-footprint-audit`); updating the binaries (→ `ai-agent-cli-update-cycle`);
 auditing or setting up the shared Kanban board, which lives in `~/.hermes/kanban.db`
-outside any profile dir (→ `hermes-kanban-orchestration`).
+outside any profile dir (→ `hermes-kanban-orchestration`). The last three are external to
+this repo: use them only if they happen to be installed.
 
 ## Procedure
 

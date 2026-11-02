@@ -44,7 +44,8 @@ Orden completo: [`CHAIN.md`](../fleet-conventions/CHAIN.md).
 
 **Don't use for:** auditing a single profile's internals (→ `hermes-profile-audit`);
 auditing installed third-party agent CLIs (→ `agent-stack-footprint-audit`);
-updating the binaries (→ `ai-agent-cli-update-cycle`).
+updating the binaries (→ `ai-agent-cli-update-cycle`). The last two are external to this
+repo: use them only if they happen to be installed.
 
 ## The three facts that make or break a fleet audit
 

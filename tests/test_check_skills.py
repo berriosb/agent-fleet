@@ -771,6 +771,146 @@ class TestReadmeLicenses(ScriptTestCase):
         self.assertEqual(errors, [])
 
 
+class TestSkillReferences(ScriptTestCase):
+    """Toda skill que un SKILL.md nombra como ruteo tiene que existir.
+
+    `CHAIN.md` no se carga por description: en runtime lo unico que decide que
+    skill entra es el texto de la description y los ruteos del cuerpo. Un
+    nombre que no existe es una promesa que el agente no puede cumplir, y lo
+    busca adentro del repo.
+    """
+
+    script = "check-skills.py"
+
+    def _skill(self, name: str, frontmatter_extra: str = "", body: str = "") -> None:
+        skill_dir = self.root / "skills" / name
+        skill_dir.mkdir(parents=True, exist_ok=True)
+        (skill_dir / "SKILL.md").write_text(
+            "---\n"
+            f"name: {name}\n"
+            f'description: "{DEFAULT_DESCRIPTION}"\n'
+            "license: MIT\n"
+            "version: 1.0.0\n"
+            f"{frontmatter_extra}"
+            "---\n\n"
+            f"# {name}\n\n"
+            "## En la cadena\n\nFase 1 — Diseno. Cuando toque.\n\n"
+            f"{body}\n",
+            encoding="utf-8",
+        )
+
+    def test_related_skills_inexistente_se_reporta(self) -> None:
+        self.use_root()
+        self._skill("alpha", "metadata:\n  related_skills: [fantasma]\n")
+        errors: list[str] = []
+        self.module.check_skill_references(errors)
+        self.assertTrue(any("related_skills" in e and "fantasma" in e for e in errors))
+
+    def test_related_skills_existente_pasa(self) -> None:
+        self.use_root()
+        self._skill("alpha")
+        self._skill("beta", "metadata:\n  related_skills: [alpha]\n")
+        errors: list[str] = []
+        self.module.check_skill_references(errors)
+        self.assertEqual(errors, [])
+
+    def test_ruteo_por_flecha_a_skill_inexistente_se_reporta(self) -> None:
+        self.use_root()
+        self._skill("alpha", body="No usar para esto (→ `fantasma`).")
+        errors: list[str] = []
+        self.module.check_skill_references(errors)
+        self.assertTrue(any("fantasma" in e for e in errors))
+
+    def test_skill_externa_sin_descargo_se_reporta(self) -> None:
+        self.use_root()
+        self._skill("alpha", body="No usar para esto (→ `agent-stack-footprint-audit`).")
+        errors: list[str] = []
+        self.module.check_skill_references(errors)
+        self.assertTrue(any("externa" in e for e in errors))
+
+    def test_skill_externa_con_descargo_pasa(self) -> None:
+        self.use_root()
+        self._skill(
+            "alpha",
+            body=(
+                "No usar para esto (→ `agent-stack-footprint-audit`).\n"
+                "Esa es externa a este repo: usala solo si esta instalada.\n"
+            ),
+        )
+        errors: list[str] = []
+        self.module.check_skill_references(errors)
+        self.assertEqual(errors, [])
+
+    def test_ruteo_en_la_description_a_skill_inexistente_se_reporta(self) -> None:
+        self.use_root()
+        self._skill("alpha")
+        path = self.root / "skills" / "alpha" / "SKILL.md"
+        content = path.read_text(encoding="utf-8").replace(
+            DEFAULT_DESCRIPTION,
+            "Hace una cosa. Trigger: siempre. NOT lo otro (fantasma).",
+        )
+        path.write_text(content, encoding="utf-8")
+        errors: list[str] = []
+        self.module.check_skill_references(errors)
+        self.assertTrue(any("fantasma" in e for e in errors))
+
+    def test_ruteo_en_la_description_a_skill_existente_pasa(self) -> None:
+        self.use_root()
+        self._skill("alpha")
+        self._skill("beta")
+        path = self.root / "skills" / "alpha" / "SKILL.md"
+        content = path.read_text(encoding="utf-8").replace(
+            DEFAULT_DESCRIPTION,
+            "Hace una cosa. Trigger: siempre. NOT lo otro (beta).",
+        )
+        path.write_text(content, encoding="utf-8")
+        errors: list[str] = []
+        self.module.check_skill_references(errors)
+        self.assertEqual(errors, [])
+
+
+class TestReadmeCheckCount(ScriptTestCase):
+    """El README dice cuantos checks tiene el checker: que diga la verdad.
+
+    El numero se cuenta sobre el codigo de `main()`, no sobre una lista escrita
+    a mano: la lista seria otra copia que deriva sola.
+    """
+
+    script = "check-skills.py"
+
+    def test_cuenta_distinta_se_reporta(self) -> None:
+        self.use_root()
+        real = self.module.count_checks()
+        (self.root / "README.md").write_text(
+            f"`check-skills.py` | {real + 3} checks: lo que sea.\n", encoding="utf-8"
+        )
+        errors: list[str] = []
+        self.module.check_readme_check_count(errors)
+        self.assertTrue(any("checks" in e for e in errors))
+
+    def test_cuenta_correcta_pasa(self) -> None:
+        self.use_root()
+        real = self.module.count_checks()
+        (self.root / "README.md").write_text(
+            f"`check-skills.py` | {real} checks: lo que sea.\n", encoding="utf-8"
+        )
+        errors: list[str] = []
+        self.module.check_readme_check_count(errors)
+        self.assertEqual(errors, [])
+
+    def test_readme_sin_el_numero_se_reporta(self) -> None:
+        self.use_root()
+        (self.root / "README.md").write_text("`check-skills.py` | el validador.\n", encoding="utf-8")
+        errors: list[str] = []
+        self.module.check_readme_check_count(errors)
+        self.assertTrue(any("no dice cuantos checks" in e for e in errors))
+
+    def test_el_conteo_sale_del_codigo(self) -> None:
+        # El numero viene de las llamadas en main(), no de una constante.
+        source = "def main() -> int:\n    check_a(errors)\n    check_b(errors)\n    check_a(errors)\n"
+        self.assertEqual(self.module.count_checks(source), 2)
+
+
 class TestCoverageConsistency(ScriptTestCase):
     script = "check-skills.py"
 
