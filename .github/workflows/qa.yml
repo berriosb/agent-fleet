@@ -78,10 +78,10 @@ jobs:
       stack: ${{ steps.detect.outputs.stack }}
     steps:
       - name: Checkout caller code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Checkout QA scripts
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           repository: berriosb/agent-fleet
           ref: v1
@@ -111,17 +111,17 @@ jobs:
 
       - name: Setup pnpm
         if: contains(fromJSON('["pnpm","npm","yarn","bun","mixed"]'), steps.detect.outputs.stack)
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 9
 
       - name: Setup Python (uv)
         if: contains(fromJSON('["python","pip","mixed"]'), steps.detect.outputs.stack)
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v7
 
       - name: Setup Python (system)
         if: steps.detect.outputs.stack == 'pip'
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -173,10 +173,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout caller code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Checkout QA scripts
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           repository: berriosb/agent-fleet
           ref: v1
@@ -185,17 +185,17 @@ jobs:
 
       - name: Setup pnpm
         if: contains(fromJSON('["pnpm","npm","yarn","bun","mixed"]'), needs.static.outputs.stack)
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 9
 
       - name: Setup Python (uv)
         if: contains(fromJSON('["python","pip","mixed"]'), needs.static.outputs.stack)
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v7
 
       - name: Setup Python (system)
         if: needs.static.outputs.stack == 'pip'
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -262,12 +262,12 @@ jobs:
       PR_TITLE: ${{ github.event.pull_request.title }}
     steps:
       - name: Checkout caller code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Checkout QA scripts
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           repository: berriosb/agent-fleet
           ref: v1
@@ -344,13 +344,13 @@ jobs:
       GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
     steps:
       - name: Checkout caller code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
           fetch-depth: 0
 
       - name: Checkout QA scripts
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           repository: berriosb/agent-fleet
           ref: v1
